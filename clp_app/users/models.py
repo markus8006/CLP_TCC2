@@ -17,10 +17,10 @@ class UserRole(enum.Enum):
 # as propriedades que o sistema de login espera (is_authenticated, etc)
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullabel=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
 
-    role = db.Column(db.String(50), nullable=False, defalt=UserRole.USER)
+    role = db.Column(db.String(50), nullable=False, default=UserRole.USER)
 
 
     def set_password(self, password):
@@ -45,7 +45,7 @@ class User(UserMixin, db.Model):
 
 
 
-    def __rerp__(self):
+    def __repr__(self):
         return f"<User {self.username}>"
     
 
