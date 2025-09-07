@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}CLPs Detectados{% endblock %}
+
+{% block css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
+{% endblock %}
+
+{% block content %}
+    <h1>CLPs Detectados</h1>
+    
+    <div class="filter-controls">
+        <form class="search-form" method="POST" action="{{ url_for('index') }}">
+            <input 
+                class="form__input" 
+                type="text" 
+                name="buscar_clp" 
+                placeholder="Procurar por nome..." 
+                value="{{ search_term or '' }}">
+            
+            <input 
+                class="form__input" 
+                type="text" 
+                name="buscar_tag" 
+                placeholder="Procurar por tag..." 
+                value="{{ tag_term or '' }}">
+
+            <button class="form__button" type="submit">Buscar</button>
+        </form>
+
+        </div>
+
+    {% if search_term %}
+        <p>Exibindo resultados para: <strong>"{{ search_term }}"</strong></p>
+    {% else %}
+        <p>Exibindo {{ clps|length }} de {{ clps|length }} CLPs por página.</p>
+    {% endif %}
+
+    <div class="clp-grid">
+        {% for clp in clps %}
+            <article class="clp-card">
+                <a href="/clp/{{ clp.IP }}" title="Descrição {{ clp.descricao }} | Portas: {{ clp.PORTAS }}">
+                    <img class="clp-card__image" src="{{ url_for('static', filename='imgs/clp_imagem.png') }}" alt="Ícone de um CLP industrial">
+                    <div class="clp-card__details">
+                        <p class="clp-card__nome">{{ clp.nome }}</p>
+                        <p class="clp-card__ip">{{ clp.IP }}</p>
+                    </div>
+                </a>
+            </article>
+        {% else %}
+            <p>Nenhum CLP encontrado com esse nome.</p>
+        {% endfor %}
+    </div>
+
+    <div class="pagination">
+        {% if page > 1 %}
+            <a href="/?page={{ page - 1 }}">« Anterior</a>
+        {% endif %}
+
+        <span>Página {{ page }} de {{ total_paginas }}</span>
+
+        {% if page < total_paginas %}
+            <a href="/?page={{ page + 1 }}">Próxima »</a>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -27,7 +27,7 @@ def create_app():
     login_manager.init_app(app)
 
     # Importa o modelo de utilizador para ser usado no user_loader
-    from .users.models import User
+    from .users_page.models import User
 
     # NOVO E ESSENCIAL: Define a função user_loader
     @login_manager.user_loader
@@ -45,7 +45,7 @@ def create_app():
         app.register_blueprint(main_blueprint)
 
         # Regista as rotas de autenticação (login, logout, etc.)
-        from .users.auth_routes import auth_bp as auth_blueprint
+        from .users_page.auth_routes import auth_bp as auth_blueprint
         app.register_blueprint(auth_blueprint)
         
         # Futuramente, registe aqui as suas rotas de API

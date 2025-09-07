@@ -9,6 +9,9 @@ from .. import db  # Importa o 'db' do __init__.py da pasta clp_app
 # Cria um Blueprint para as rotas de autenticação
 auth_bp = Blueprint('auth', __name__)
 
+
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -25,7 +28,7 @@ def login():
         # Redireciona para a página principal (que está no blueprint 'main')
         return redirect(url_for('main.index'))
     
-    return render_template('login.html', form=form)
+    return render_template('users_page/login.html', form=form)
 
 @auth_bp.route('/logout')
 @login_required
@@ -51,4 +54,4 @@ def register():
         flash('Utilizador Administrador registado com sucesso! Por favor, faça o login.', 'success')
         return redirect(url_for('auth.login'))
         
-    return render_template('register.html', form=form)
+    return render_template('users_page/register.html', form=form)

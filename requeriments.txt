@@ -1,3 +1,9 @@
+Flask
+Flask-Login
+Flask-SQLAlchemy
+Flask-WTF
+psutil
 scapy
+werkzeug
 pymodbus
-flask
+ipaddress
