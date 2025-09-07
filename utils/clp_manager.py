@@ -56,11 +56,15 @@ def buscar_por_ip(ip_procurado):
             return clp
     return None
 
-def criar_clp(ip, grupo="Sem Grupo"):
+def criar_clp(dados, grupo="Sem Grupo"):
     """
     Cria um novo dicionário de CLP com a estrutura de dados completa e o adiciona
     à lista principal.
     """
+
+    ip = dados["ip"]
+    mac = dados["mac"]
+    subnet = dados["subnet"]
     # Verifica se o CLP já existe para não duplicar
     if buscar_por_ip(ip):
         logging.warning(f"Tentativa de criar um CLP que já existe: {ip}")
@@ -69,6 +73,8 @@ def criar_clp(ip, grupo="Sem Grupo"):
     # O novo modelo de dados completo
     novo_clp = {
         "ip": ip,
+        "mac": mac,
+        "subnet": subnet,
         "nome": f"CLP_{ip.replace('.', '_')}", # Nome padrão
         "grupo": grupo,
         "metadata": {

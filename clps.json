@@ -1,0 +1,20 @@
+[
+    {
+        "ip": "192.168.18.8",
+        "nome": "CLP_192_168_18_8",
+        "grupo": "Sem Grupo",
+        "metadata": {
+            "fabricante": "Desconhecido",
+            "modelo": "Desconhecido",
+            "versao_firmware": "N/A",
+            "data_instalacao": null,
+            "responsavel": "",
+            "numero_serie": ""
+        },
+        "tags": [],
+        "status": "Offline",
+        "portas_abertas": [],
+        "data_registro": "2025-09-07 20:43:31",
+        "logs": []
+    }
+]
