@@ -27,7 +27,7 @@ def create_app():
     login_manager.init_app(app)
 
     # Importa os modelos para que o SQLAlchemy possa criar as tabelas
-    from . import models
+    from .users import models
 
     # Cria as tabelas do banco de dados, se não existirem
     with app.app_context():
