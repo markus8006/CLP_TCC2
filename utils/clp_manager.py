@@ -47,6 +47,7 @@ def salvar_clps():
 
 def buscar_todos():
     """Retorna a lista completa de todos os CLPs."""
+    _clps_data = _carregar_clps()
     return _clps_data
 
 def buscar_por_ip(ip_procurado):
@@ -87,7 +88,7 @@ def criar_clp(dados, grupo="Sem Grupo"):
         },
         "tags": [],
         "status": "Offline",
-        "portas_abertas": [],
+        "portas": [],
         "data_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "logs": []
     }
@@ -97,3 +98,8 @@ def criar_clp(dados, grupo="Sem Grupo"):
     
     logging.info(f"Novo CLP criado e salvo: {ip} no grupo {grupo}")
     return novo_clp
+
+
+def criar_clp(ip):
+    buscar_por_ip
+

@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes do CLP{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='styles/detalhes.css') }}">
+<style>
+    .tag-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag-item { background-color: #5a009d; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.9em; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="status_clp">
+    <span id="statusText" class="{{ 'status_online' if clp.status == 'Online' else 'status_offline' }}">
+        Status: {{ clp.status }}
+    </span>
+
+    <div id="connect-container" style="display: {{ 'none' if clp.status == 'Online' else 'inline-block' }};" class="form-acao">
+        <label for="portSelect">Porta:</label>
+        <select id="portSelect" class="input-form">
+            {% if clp.portas %}
+                {% for porta in clp.portas %}
+                    <option value="{{ porta }}">{{ porta }}</option>
+                {% endfor %}
+            {% else %}
+                <option value="502">502 (Padrão)</option>
+            {% endif %}
+        </select>
+        <button id="btnConnect" data-ip="{{ clp.ip }}" class="btn-acao">Conectar</button>
+    </div>
+
+    <div id="disconnect-container" style="display: {{ 'inline-block' if clp.status == 'Online' else 'none' }};">
+        <button id="btnDisconnect" data-ip="{{ clp.ip }}" class="btn-acao">Desconectar</button>
+    </div>
+
+    <div id="mensagemCLP" role="status" style="margin-top:12px;color:var(--accent)"></div>
+</div>
+
+<div class="informacao_clp">
+    <h2>Informações do CLP</h2>
+    <ul>
+        <li class="info-item-editavel">
+            <strong>Nome:</strong>
+            <div id="viewMode">
+                <span id="clpName">{{ clp.nome }}</span>
+                <button id="editNameBtn" class="btn-edit" title="Editar Nome">✏️</button>
+            </div>
+            <div id="editMode" style="display: none;">
+                <input type="text" id="inputClpName" class="form-input" value="{{ clp.nome }}">
+                <button id="saveNameBtn" class="btn">Salvar</button>
+                <button id="cancelNameBtn" class="btn btn-secondary">Cancelar</button>
+            </div>
+        </li>
+        <li><strong>Modelo:</strong> {{ clp.get('modelo', 'Desconhecido') }}</li>
+        <li><strong>Fabricante:</strong> {{ clp.get('fabricante', 'Desconhecido') }}</li>
+        <li><strong>ip:</strong> <span id="clpip">{{ clp.ip }}</span></li>
+        
+        <li><strong>Tags:</strong>
+            <ul class="tag-list" id="tag-list-container">
+                {% for tag in clp.tags %}
+                    <li class="tag-item">{{ tag }}</li>
+                {% else %}
+                    <li>Nenhuma tag definida.</li>
+                {% endfor %}
+            </ul>
+        </li>
+
+        {% if clp.portas %}
+            <li><strong>portas abertas:</strong>
+                <span id="listaportas">
+                {% for porta in clp.portas %}
+                    <span class="porta_item">{{ porta }}{% if not loop.last %}, {% endif %}</span>
+                {% endfor %}
+                </span>
+            </li>
+        {% else %}
+            <li><span class="porta_fechada">Não há portas abertas</span></li>
+        {% endif %}
+        <li><strong>Versão Firmware:</strong> {{ clp.get('firmware', 'N/A') }}</li>
+        <li><strong>Última comunicação:</strong> {{ clp.data_registro }}</li>
+    </ul> </div>
+
+<div class="informacao_clp">
+    <h2>Adicionar Tag</h2>
+    <form id="formAddTag" onsubmit="return false;" class="form-acao">
+        <input type="text" id="inputTag" placeholder="Nova tag" required class="input-form">
+        <button id="btnAddTag" class="btn-acao">Adicionar</button>
+    </form>
+    <div id="tagMessage" style="margin-top: 10px;"></div>
+</div>
+
+<div class="informacao_clp">
+    <h2>Leitor de Registrador Modbus</h2>
+    <form id="formReadRegister" onsubmit="return false;" class="form-acao">
+        <input type="number" id="inputAddress" placeholder="Endereço (ex: 0)" required class="input-form">
+        <button id="btnReadRegister" class="btn-acao">Ler Registrador</button>
+    </form>
+    <div id="readResult" class="resultado-acao" style="margin-top: 10px;"></div>
+</div>
+
+<div id="mensagem" role="status" style="margin-top:12px;color:var(--accent)"></div>
+
+<div class="graficos">
+    <h2>Métricas do Dispositivo (Exemplo)</h2>
+    <div class="linha-graficos">
+        <div class="grafico-container">
+            <h3>Uso de CPU</h3>
+            <canvas id="graficoCpu"></canvas>
+        </div>
+        <div class="grafico-container">
+            <h3>Uso de Memória</h3>
+            <canvas id="graficoMemoria"></canvas>
+        </div>
+    </div>
+    <div class="linha-graficos">
+        <div class="grafico-container">
+            <h3>Tráfego de Rede</h3>
+            <canvas id="graficoRede"></canvas>
+        </div>
+        <div class="grafico-container">
+            <h3>Uso de Disco</h3>
+            <canvas id="graficoDisco"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="informacao_clp">
+    <h2>Logs de Atividade</h2>
+    <div id="logContainer" style="height: 200px; overflow-y: scroll; background-color: rgba(0,0,0,0.2); border-radius: 5px; padding: 10px; font-family: monospace;">
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='scripts/sidebar.js') }}"></script>
+<script src="{{ url_for('static', filename='scripts/graficos.js') }}"></script>
+<script src="{{ url_for('static', filename='scripts/detalhes.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const btnAddTag = document.getElementById('btnAddTag');
+    if (btnAddTag) {
+        btnAddTag.addEventListener('click', async () => {
+            const ip = document.getElementById('clpip').textContent;
+            const inputTag = document.getElementById('inputTag');
+            const newTag = inputTag.value.trim();
+            const tagMessage = document.getElementById('tagMessage');
+
+            if (!newTag) {
+                tagMessage.textContent = 'Por favor, insira uma tag.';
+                return;
+            }
+
+            const response = await fetch(`/clp/${ip}/tags`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tag: newTag })
+            });
+
+            const data = await response.json();
+            tagMessage.textContent = data.message;
+
+            if (data.success) {
+                const tagListContainer = document.getElementById('tag-list-container');
+                tagListContainer.innerHTML = ''; 
+                data.tags.forEach(tag => {
+                    const li = document.createElement('li');
+                    li.className = 'tag-item';
+                    li.textContent = tag;
+                    tagListContainer.appendChild(li);
+                });
+                inputTag.value = '';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+@import url('base.css');
+
+.container_clps h1, .container_clps h2 {
+    margin-bottom: 10px;
+}
+.status_online {
+    color: #00ff99;
+}
+.status_offline {
+    color: #ff3b3b;
+}
+
+/* Container com scroll para os logs */
+.logs-container {
+    max-height: 70vh;
+    width: 100%;
+    overflow-y: auto; /* Cria a barra de rolagem */
+    border: 1px solid #6e0096;
+    border-radius: 5px;
+}
+
+.logs-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.logs-container th, .logs-container td {
+    padding: 10px;
+    text-align: center;
+    border-bottom: 1px solid #4d026a;
+}
+
+/* Cabeçalho da tabela fixo no topo */
+.logs-container th {
+    position: sticky;
+    top: 0;
+    background-color: #1e1e1e; 
+}
+
+/* Cores alternadas nas linhas para melhor legibilidade */
+.logs-container tbody tr:nth-child(even) {
+    background-color: #2c2c2c;
+}
+
+.limpar_logs_ips {
+    position: relative;
+    top: -5px;
+    background-color: #0d0081;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: 1px solid #6e0096;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.limpar_logs_ips:hover {
+    background-color: #1b00a3;
+    transform: translateY(-2px);
+}
+
+.limpar_registros_ips {
+    position: relative;
+    top: -5px;
+    background-color: #0d0081;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: 1px solid #6e0096;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.limpar_registros_ips:hover {
+    background-color: #1b00a3;
+    transform: translateY(-2px);
+}
