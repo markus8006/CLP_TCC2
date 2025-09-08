@@ -100,6 +100,3 @@ def criar_clp(dados, grupo="Sem Grupo"):
     return novo_clp
 
 
-def criar_clp(ip):
-    buscar_por_ip
-
