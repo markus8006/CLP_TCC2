@@ -39,7 +39,7 @@
     <div class="clp-grid">
         {% for clp in clps %}
             <article class="clp-card">
-                <a href="/clp/{{ clp.IP }}" title="Descrição {{ clp.descricao }} | Portas: {{ clp.PORTAS }}">
+                <a href="/clp/{{ clp["IP"] }}" title="Descrição {{ clp.descricao }} | Portas: {{ clp.PORTAS }}">
                     <img class="clp-card__image" src="{{ url_for('static', filename='imgs/clp_imagem.png') }}" alt="Ícone de um CLP industrial">
                     <div class="clp-card__details">
                         <p class="clp-card__nome">{{ clp.nome }}</p>

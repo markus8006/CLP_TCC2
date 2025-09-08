@@ -6,16 +6,11 @@ import json
 
 app = create_app()
 
-if __name__ == '__main__':
+import threading
+
+def discovery_background():
     save_discoveries_to_json(run_full_discovery(passive_timeout=10))
-    with open("discovery_results.json", "r", encoding="utf-8") as f:
-        dados = json.load(f)
-        for dado in dados:
-            criar_clp(dado)
 
-
-    # host='0.0.0.0' permite que a aplicação seja acessada por outros
-    # dispositivos na mesma rede, não apenas pelo seu próprio computador.
+if __name__ == '__main__':
+    threading.Thread(target=discovery_background, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=True)
-
-    
