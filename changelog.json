@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.0.2",
+    "date": "2025-09-12",
+    "changes": {
+      "added": [
+        "Separação de clps e demais dispositivos"
+      ],
+      "fixed" : [
+        "Nomes dos clps salvos com . ao invés de _"
+      ]
+    }
+  },
+  {
     "version": "0.0.1",
     "date": "2025-09-11",
     "changes": {

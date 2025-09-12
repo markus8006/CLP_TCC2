@@ -20,12 +20,39 @@
             53,
             80
         ],
-        "data_registro": "2025-09-11 22:45:31",
+        "data_registro": "2025-09-12 14:25:32",
         "logs": [
             {
                 "acao": "Enriquecimento",
                 "detalhes": "Dispositivo identificado como Smartphone / Tablet / Web Device, fabricante: HUAWEI TECHNOLOGIES CO.,LTD",
-                "data": "2025-09-11 22:45:31"
+                "data": "2025-09-12 14:25:32"
+            }
+        ]
+    },
+    {
+        "ip": "192.168.18.14",
+        "mac": "6a:7c:e1:dd:67:6e",
+        "subnet": "192.168.18.0/24",
+        "nome": "Desconhecido_192.168.18.14",
+        "tipo": "Desconhecido",
+        "grupo": "Sem Grupo",
+        "metadata": {
+            "fabricante": "Desconhecido",
+            "modelo": "Desconhecido",
+            "versao_firmware": "N/A",
+            "data_instalacao": null,
+            "responsavel": "",
+            "numero_serie": ""
+        },
+        "tags": [],
+        "status": "Offline",
+        "portas": [],
+        "data_registro": "2025-09-12 14:25:32",
+        "logs": [
+            {
+                "acao": "Enriquecimento",
+                "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Desconhecido",
+                "data": "2025-09-12 14:25:32"
             }
         ]
     },
@@ -51,12 +78,12 @@
             139,
             445
         ],
-        "data_registro": "2025-09-11 22:45:31",
+        "data_registro": "2025-09-12 14:25:32",
         "logs": [
             {
                 "acao": "Enriquecimento",
                 "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Hon Hai Precision Ind. Co.,Ltd.",
-                "data": "2025-09-11 22:45:31"
+                "data": "2025-09-12 14:25:32"
             }
         ]
     },
@@ -78,20 +105,20 @@
         "tags": [],
         "status": "Offline",
         "portas": [],
-        "data_registro": "2025-09-11 22:45:31",
+        "data_registro": "2025-09-12 14:25:32",
         "logs": [
             {
                 "acao": "Enriquecimento",
                 "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Desconhecido",
-                "data": "2025-09-11 22:45:31"
+                "data": "2025-09-12 14:25:32"
             }
         ]
     },
     {
-        "ip": "192.168.18.191",
+        "ip": "192.168.18.197",
         "mac": "c8:12:0b:1a:b5:b0",
         "subnet": "192.168.18.0/24",
-        "nome": "Desconhecido_192.168.18.191",
+        "nome": "Desconhecido_192.168.18.197",
         "tipo": "Desconhecido",
         "grupo": "Sem Grupo",
         "metadata": {
@@ -105,12 +132,12 @@
         "tags": [],
         "status": "Offline",
         "portas": [],
-        "data_registro": "2025-09-11 22:45:31",
+        "data_registro": "2025-09-12 14:25:32",
         "logs": [
             {
                 "acao": "Enriquecimento",
                 "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Samsung Electronics Co.,Ltd",
-                "data": "2025-09-11 22:45:31"
+                "data": "2025-09-12 14:25:32"
             }
         ]
     },
@@ -132,12 +159,12 @@
         "tags": [],
         "status": "Offline",
         "portas": [],
-        "data_registro": "2025-09-11 22:45:31",
+        "data_registro": "2025-09-12 14:25:32",
         "logs": [
             {
                 "acao": "Enriquecimento",
                 "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Microsoft Corporation",
-                "data": "2025-09-11 22:45:31"
+                "data": "2025-09-12 14:25:32"
             }
         ]
     },
@@ -162,12 +189,39 @@
             22,
             80
         ],
-        "data_registro": "2025-09-11 22:45:31",
+        "data_registro": "2025-09-12 14:25:32",
         "logs": [
             {
                 "acao": "Enriquecimento",
                 "detalhes": "Dispositivo identificado como Servidor ou Dispositivo IoT, fabricante: Desconhecido",
-                "data": "2025-09-11 22:45:31"
+                "data": "2025-09-12 14:25:32"
+            }
+        ]
+    },
+    {
+        "ip": "192.168.18.233",
+        "mac": "96:6a:9e:73:e5:84",
+        "subnet": "192.168.18.0/24",
+        "nome": "Desconhecido_192.168.18.233",
+        "tipo": "Desconhecido",
+        "grupo": "Sem Grupo",
+        "metadata": {
+            "fabricante": "Desconhecido",
+            "modelo": "Desconhecido",
+            "versao_firmware": "N/A",
+            "data_instalacao": null,
+            "responsavel": "",
+            "numero_serie": ""
+        },
+        "tags": [],
+        "status": "Offline",
+        "portas": [],
+        "data_registro": "2025-09-12 14:25:32",
+        "logs": [
+            {
+                "acao": "Enriquecimento",
+                "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Desconhecido",
+                "data": "2025-09-12 14:25:32"
             }
         ]
     }

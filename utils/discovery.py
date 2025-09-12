@@ -93,7 +93,7 @@ def _scan_arp_on_subnet(network_range, timeout=3):
         print(f"[!] Erro durante o scan em {network_range}: {e}")
         return []
 
-def save_discoveries_to_json(devices_list, filename="discovery_results.json"):
+def save_discoveries_to_json(devices_list, filename="data/discovery_results.json"):
     """Salva a lista de dispositivos descobertos em um arquivo JSON."""
     if not devices_list:
         print("\n[!] Nenhum dispositivo para salvar no arquivo JSON.")

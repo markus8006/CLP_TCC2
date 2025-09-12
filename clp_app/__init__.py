@@ -19,7 +19,7 @@ def create_app():
     # Configurações essenciais
     app.config['SECRET_KEY'] = os.urandom(24)
     PROJECT_ROOT = get_project_root()
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(PROJECT_ROOT, 'app.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(PROJECT_ROOT, 'clp_app/db/app.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Inicializa as extensões com a aplicação
@@ -47,6 +47,9 @@ def create_app():
         # Regista as rotas de autenticação (login, logout, etc.)
         from .users_page.auth_routes import auth_bp as auth_blueprint
         app.register_blueprint(auth_blueprint)
+
+        from .api.routes import clp_bp
+        app.register_blueprint(clp_bp)
         
         # Futuramente, registe aqui as suas rotas de API
         # from .api.routes import clp_bp

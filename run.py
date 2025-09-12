@@ -11,7 +11,7 @@ import threading
 
 def discovery_background():
     save_discoveries_to_json(run_full_discovery(passive_timeout=10))
-    with open("discovery_results.json", "r", encoding="utf-8") as f:
+    with open("data/discovery_results.json", "r", encoding="utf-8") as f:
         dados = json.load(f)
         for dado in dados:
             criar_dispositivo(dado)
