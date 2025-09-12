@@ -6,14 +6,38 @@ from netaddr import EUI, NotRegisteredError
 from utils.root import get_project_root
 from typing import List, Dict, Any, Optional, Tuple
 import tempfile
+from pymodbus.client import ModbusTcpClient
 
 # --- Configurações ---
 PROJECT_ROOT = get_project_root()
 CLPS_FILE = os.path.join(PROJECT_ROOT, "data/clps.json")        # arquivo original para CLPs
 DEVICES_FILE = os.path.join(PROJECT_ROOT, "data/devices.json")  # arquivo separado para outros dispositivos
 
+_active_clients = {}
+
+
 # Garante que a pasta exista
 os.makedirs(os.path.dirname(CLPS_FILE), exist_ok=True)
+
+
+_clps = {}
+try:
+    with open(CLPS_FILE, "r", encoding="UTF-8") as f:
+        _clps = json.load(f)
+except FileNotFoundError:
+    print(f"Error: The file at {CLPS_FILE} was not found.")
+except json.JSONDecodeError:
+    print(f"Error: The file at {CLPS_FILE} is not a valid JSON file.")
+
+
+
+def buscar_todos():
+    try:
+        with open(CLPS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {}
+    
 
 # --- Carregamento dos JSONs existentes ---
 def _carregar_arquivo(path: str) -> List[Dict[str, Any]]:
@@ -50,18 +74,20 @@ def salvar_others() -> None:
 
 
 # --- Funções de busca ---
-def buscar_por_ip(ip_procurado: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+def buscar_por_ip(ip_procurado: str) -> Optional[Dict[str, Any]]:
     """
     Busca por IP em ambos os arquivos.
-    Retorna (entry, source) onde source é 'clp' ou 'other' ou None.
+    Retorna o dict encontrado ou None.
     """
     for clp in _clps_data:
         if clp.get("ip") == ip_procurado:
-            return clp, "clp"
+            return clp
+
     for dev in _others_data:
         if dev.get("ip") == ip_procurado:
-            return dev, "other"
-    return None, None
+            return dev
+
+    return None
 
 
 # --- Remover por referência (auxiliar para mover entre listas) ---
@@ -72,7 +98,7 @@ def _remover_por_ip_de_lista(ip: str, lista: List[Dict[str, Any]]) -> None:
 
 
 # --- Criação / Enriquecimento de dispositivo ---
-def criar_dispositivo(dados: Dict[str, Any], grupo: str = "Sem Grupo") -> Dict[str, Any]:
+def criar_dispositivo(dados: dict, grupo: str = "Sem Grupo") -> dict:
     ip = dados.get("ip")
     mac = dados.get("mac")
     subnet = dados.get("subnet", "Desconhecida")
@@ -82,11 +108,11 @@ def criar_dispositivo(dados: Dict[str, Any], grupo: str = "Sem Grupo") -> Dict[s
         logging.warning("[WARN] criar_dispositivo chamado sem IP válido.")
         return {}
 
-    # Verifica se já existe em qualquer arquivo
-    existente, origem = buscar_por_ip(ip)
+    # Verifica se já existe
+    existente = buscar_por_ip(ip)
     if existente:
-        logging.info(f"[INFO] Atualizando dispositivo existente: {ip} (origem: {origem})")
-        # Mescla portas mantendo tipo inteiro (evita duplicatas)
+        logging.info(f"[INFO] Atualizando dispositivo existente: {ip}")
+        # Mescla portas evitando duplicatas
         portas_existentes = set(existente.get("portas", []))
         portas_existentes.update(portas)
         existente["portas"] = sorted(list(portas_existentes))
@@ -95,19 +121,19 @@ def criar_dispositivo(dados: Dict[str, Any], grupo: str = "Sem Grupo") -> Dict[s
             "detalhes": f"Portas atualizadas: {portas}",
             "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
-        # Salva no arquivo correto
-        if origem == "clp":
+        # Decide onde salvar
+        if existente.get("tipo") == "CLP":
             salvar_clps()
         else:
             salvar_others()
         return existente
 
-    # Determina fabricante (com tratamento caso MAC seja inválido)
+    # Determina fabricante
     fabricante = "Desconhecido"
     if mac:
         try:
             fabricante = str(EUI(mac).oui.registration().org)
-        except (NotRegisteredError, Exception):
+        except Exception:
             fabricante = "Desconhecido"
 
     # Determina tipo pelo fabricante ou portas
@@ -154,7 +180,7 @@ def criar_dispositivo(dados: Dict[str, Any], grupo: str = "Sem Grupo") -> Dict[s
         ]
     }
 
-    # Decide onde armazenar: CLPs -> CLPS_FILE, outros -> DEVICES_FILE
+    # Salva no arquivo correto
     if tipo == "CLP":
         _clps_data.append(dispositivo)
         salvar_clps()
@@ -165,6 +191,7 @@ def criar_dispositivo(dados: Dict[str, Any], grupo: str = "Sem Grupo") -> Dict[s
         logging.info(f"[INFO] Novo dispositivo (não-CLP) criado e salvo em {DEVICES_FILE}: {ip}")
 
     return dispositivo
+
 
 
 
@@ -223,9 +250,9 @@ def get_info(clp: dict) -> dict:
     # --- CORREÇÃO APLICADA AQUI ---
     # Padroniza as chaves para corresponderem às da função 'criar_clp'
     return {
-        "IP": clp.get("IP"),  # Chave corrigida de "ip" para "IP"
-        "UNIDADE": clp.get("UNIDADE"),
-        "PORTAS": clp.get("PORTAS", []), # Chave corrigida de "portas" para "PORTAS"
+        "ip": clp.get("ip"),  # Chave corrigida de "ip" para "IP"
+        "unidade": clp.get("unidade"),
+        "portas": clp.get("portas", []), # Chave corrigida de "portas" para "PORTAS"
         "conectado": clp.get("conectado", False),
         "data_registro": clp.get("data_registro"),
         "nome": clp.get("nome"),
@@ -234,3 +261,10 @@ def get_info(clp: dict) -> dict:
         "status": clp.get("status"), # Adicionamos o status aqui também
         "tags": clp.get("tags", []),
     }
+
+
+
+def listar_clps() -> List[dict]:
+    """Retorna uma lista contendo os CLPs cadastrados (dicionários inteiros)."""
+    return _clps_data
+

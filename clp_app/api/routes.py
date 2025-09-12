@@ -5,7 +5,7 @@ import logging
 from threading import Thread
 
 # Imports de utilidades
-from utils import CLP as clp_manager, clp_functions
+from utils import clp_manager
 from utils import tags_manager  # NOVO: Importa o gerenciador de tags globais
 # from clp_app.scanner.service import scanner_service
 # from utils.log import caminho_coleta, caminho_app
@@ -114,13 +114,13 @@ def clp_connect(ip):
     porta_selecionada = data.get("port")
 
     def job():
-        clp_functions.adicionar_log(clp_dict, f"Iniciando tentativa de conexão na porta {porta_selecionada}...")
+        clp_manager.adicionar_log(clp_dict, f"Iniciando tentativa de conexão na porta {porta_selecionada}...")
         try:
-            clp_functions.conectar(clp_dict, port=porta_selecionada)
-            clp_functions.adicionar_log(clp_dict, f"Estado após tentar conectar: {clp_dict.get('conectado')}")
+            clp_manager.conectar(clp_dict, port=porta_selecionada)
+            clp_manager.adicionar_log(clp_dict, f"Estado após tentar conectar: {clp_dict.get('conectado')}")
             clp_manager.salvar_clps()
         except Exception as e:
-            clp_functions.adicionar_log(clp_dict, f"Erro durante conectar: {e}")
+            clp_manager.adicionar_log(clp_dict, f"Erro durante conectar: {e}")
             clp_manager.salvar_clps()
 
     _run_in_thread(job)
@@ -132,9 +132,9 @@ def clp_disconnect(ip):
     if not clp_dict:
         return jsonify({"ok": False, "error": "CLP não encontrado"}), 404
     try:
-        clp_functions.desconectar(clp_dict)
+        clp_manager.desconectar(clp_dict)
         clp_manager.salvar_clps()
-        status_info = clp_functions.get_info(clp_dict)["status"]
+        status_info = clp_manager.get_info(clp_dict)["status"]
         return jsonify({"ok": True, "message": "Desconectado", "status": status_info})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -145,7 +145,7 @@ def clp_info(ip):
     clp_dict = clp_manager.buscar_por_ip(ip)
     if not clp_dict:
         return jsonify({"ok": False, "error": "CLP não encontrado"}), 404
-    return jsonify({"ok": True, "clp": clp_functions.get_info(clp_dict)})
+    return jsonify({"ok": True, "clp": clp_manager.get_info(clp_dict)})
 
 
 @clp_bp.route("/<ip>/add_port", methods=["POST"])
@@ -160,7 +160,7 @@ def clp_add_port(ip):
         return jsonify({"ok": False, "error": "porta obrigatória"}), 400
 
     try:
-        clp_functions.adicionar_porta(clp_dict, int(porta))
+        clp_manager.adicionar_porta(clp_dict, int(porta))
         clp_manager.salvar_clps()
         return jsonify({"ok": True, "message": "Porta adicionada", "portas": clp_dict["PORTAS"]})
     except Exception as e:
@@ -171,7 +171,7 @@ def clp_add_port(ip):
 def clp_read_register(ip):
     clp_dict = clp_manager.buscar_por_ip(ip)
     # Obtém o cliente de conexão a partir do módulo de funções
-    client = clp_functions.get_client(ip)
+    client = clp_manager.get_client(ip)
 
     if not clp_dict or not client or not client.is_socket_open():
         return jsonify({"ok": False, "error": "CLP não conectado"}), 400
@@ -254,4 +254,4 @@ def rename_clp():
 
 # NOTA: A rota 'baixar_codigo' foi removida pois dependia da subclasse CLPGen,
 # que foi eliminada na refatoração. Ela pode ser recriada como uma função em
-# 'clp_functions.py' se a funcionalidade for necessária.
+# 'clp_manager.py' se a funcionalidade for necessária.

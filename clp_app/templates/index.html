@@ -8,6 +8,7 @@
 
 {% block content %}
     <h1>CLPs Detectados</h1>
+
     
     <div class="filter-controls">
         <form class="search-form" method="POST" action="{{ url_for('main.index') }}">
@@ -39,14 +40,15 @@
     <div class="clp-grid">
         {% for clp in clps %}
             <article class="clp-card">
-                <a href="/clp/{{ clp.ip }}" title="Descrição {{ clp.descricao }} | Portas: {{ clp.PORTAS }}">
-                    <img class="clp-card__image" src="{{ url_for('static', filename='imgs/clp_imagem.png') }}" alt="Ícone de um CLP industrial">
-                    <div class="clp-card__details">
-                        <p class="clp-card__nome">{{ clp.nome }}</p>
-                        <p class="clp-card__ip">{{ clp.ip }}</p>
-                    </div>
+                <a href="/clp/{{ clp.ip }}" title="Descrição {{ clp.descricao }} | Portas: {{ clp.portas }}">
+                <img class="clp-card__image" src="{{ url_for('static', filename='imgs/clp_imagem.png') }}" alt="Ícone de um CLP industrial">
+                <div class="clp-card__details">
+                    <p class="clp-card__nome">{{ clp.nome }}</p>
+                    <p class="clp-card__ip">{{ clp.ip }}</p>
+                </div>
                 </a>
             </article>
+
         {% else %}
             <p>Nenhum CLP encontrado com esse nome.</p>
         {% endfor %}

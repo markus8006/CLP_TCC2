@@ -25,8 +25,8 @@
                 {% endfor %}
             {% else %}
                 <option value="502">502 (Padrão)</option>
-            {% endif %}
-        </select>
+            {% endif %}    
+        </select>     
         <button id="btnConnect" data-ip="{{ clp.ip }}" class="btn-acao">Conectar</button>
     </div>
 
@@ -54,7 +54,7 @@
         </li>
         <li><strong>Modelo:</strong> {{ clp.get('modelo', 'Desconhecido') }}</li>
         <li><strong>Fabricante:</strong> {{ clp.get('fabricante', 'Desconhecido') }}</li>
-        <li><strong>ip:</strong> <span id="clpip">{{ clp.ip }}</span></li>
+        <li><strong>ip:</strong> <span id="clpIp">{{ clp.ip }}</span></li>
         
         <li><strong>Tags:</strong>
             <ul class="tag-list" id="tag-list-container">

@@ -9,9 +9,8 @@ main = Blueprint('main', __name__)
 clps_por_pagina = 21
 
 
-def obter_clps_lista() -> list:
-    """Retorna uma lista de dicionários com as informações dos CLPs."""
-    return clp_manager.buscar_todos()
+def obter_clps_lista():
+    return clp_manager.listar_clps()
 
 @main.route('/', methods=['GET', 'POST'])
 @login_required 
