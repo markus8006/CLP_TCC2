@@ -1,0 +1,17 @@
+[
+  {
+    "version": "0.0.1",
+    "date": "2025-09-11",
+    "changes": {
+      "added": [
+        "Inicializão de notas de versão",
+        "Estrutura inicial de metadata.json",
+        "Mapeamento de portas via nmap",
+        "Atualização de portas em clps já salvos"
+      ],
+      "fixed" : [
+        "Nomes dos clps salvos com . ao invés de _"
+      ]
+    }
+  }
+]

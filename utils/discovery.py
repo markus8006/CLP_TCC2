@@ -1,6 +1,7 @@
 import ipaddress
 import json
 from scapy.all import sniff, srp, Ether, ARP, IP, conf
+from .portas import escanear_portas
 
 # [DEBUG] Aumenta o nível de verbosidade do Scapy para nos dar mais informações se necessário
 # conf.verb = 1 
@@ -131,11 +132,15 @@ def run_full_discovery(passive_timeout=60):
                 if client['ip'] not in all_found_devices:
                     # [DEBUG] Informa sobre um novo dispositivo adicionado à lista final
                     print(f"    [DEBUG] Adicionando novo dispositivo à lista final: {client['ip']}")
+                    print("\n[*] Iniciando escaneamento de portas")
+                    portas = escanear_portas(client['ip'])
                     all_found_devices[client['ip']] = client
+                    client["portas"] = portas
                 else:
                     # [DEBUG] Informa se um dispositivo foi visto novamente (em outra sub-rede, por exemplo)
                     print(f"    [DEBUG] Dispositivo {client['ip']} já estava na lista. Atualizando informações.")
                     all_found_devices[client['ip']] = client # Atualiza caso haja alguma info nova
+                    client["portas"] = portas
         
         print("\n[*] Descoberta de IPs concluída.")
         # [DEBUG] Mostra um resumo final dos IPs únicos encontrados

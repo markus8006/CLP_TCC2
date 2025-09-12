@@ -66,9 +66,13 @@ def criar_clp(dados, grupo="Sem Grupo"):
     ip = dados["ip"]
     mac = dados["mac"]
     subnet = dados["subnet"]
+    portas = dados["portas"]
     # Verifica se o CLP já existe para não duplicar
-    if buscar_por_ip(ip):
+    clp = buscar_por_ip(ip)
+    if clp:
         logging.warning(f"Tentativa de criar um CLP que já existe: {ip}")
+        print("Atualizando dados do clp")
+        clp["portas"] += dados["portas"]
         return None
 
     # O novo modelo de dados completo
@@ -76,7 +80,7 @@ def criar_clp(dados, grupo="Sem Grupo"):
         "ip": ip,
         "mac": mac,
         "subnet": subnet,
-        "nome": f"CLP_{ip.replace('.', '_')}", # Nome padrão
+        "nome": f"CLP_{ip}", # Nome padrão
         "grupo": grupo,
         "metadata": {
             "fabricante": "Desconhecido",
@@ -88,7 +92,7 @@ def criar_clp(dados, grupo="Sem Grupo"):
         },
         "tags": [],
         "status": "Offline",
-        "portas": [],
+        "portas": portas,
         "data_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "logs": []
     }

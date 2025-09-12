@@ -1,9 +1,9 @@
 [
     {
-        "ip": "10.103.149.1",
-        "mac": "10:32:1d:37:79:1c",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_1",
+        "ip": "192.168.18.1",
+        "mac": "f0:25:8e:aa:2f:24",
+        "subnet": "192.168.18.0/24",
+        "nome": "CLP_192_168_18_1",
         "grupo": "Sem Grupo",
         "metadata": {
             "fabricante": "Desconhecido",
@@ -15,15 +15,18 @@
         },
         "tags": [],
         "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
+        "portas": [
+            53,
+            80
+        ],
+        "data_registro": "2025-09-11 21:54:25",
         "logs": []
     },
     {
-        "ip": "10.103.149.5",
-        "mac": "d0:94:66:e8:cf:23",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_5",
+        "ip": "192.168.18.15",
+        "mac": "34:23:87:77:19:d2",
+        "subnet": "192.168.18.0/24",
+        "nome": "CLP_192_168_18_15",
         "grupo": "Sem Grupo",
         "metadata": {
             "fabricante": "Desconhecido",
@@ -35,15 +38,19 @@
         },
         "tags": [],
         "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
+        "portas": [
+            135,
+            139,
+            445
+        ],
+        "data_registro": "2025-09-11 21:54:25",
         "logs": []
     },
     {
-        "ip": "10.103.149.6",
-        "mac": "d0:94:66:e8:c1:d6",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_6",
+        "ip": "192.168.18.43",
+        "mac": "b6:57:b0:88:e4:4c",
+        "subnet": "192.168.18.0/24",
+        "nome": "CLP_192_168_18_43",
         "grupo": "Sem Grupo",
         "metadata": {
             "fabricante": "Desconhecido",
@@ -56,14 +63,14 @@
         "tags": [],
         "status": "Offline",
         "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
+        "data_registro": "2025-09-11 21:54:25",
         "logs": []
     },
     {
-        "ip": "10.103.149.7",
-        "mac": "d0:94:66:e8:c2:71",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_7",
+        "ip": "192.168.18.191",
+        "mac": "c8:12:0b:1a:b5:b0",
+        "subnet": "192.168.18.0/24",
+        "nome": "CLP_192_168_18_191",
         "grupo": "Sem Grupo",
         "metadata": {
             "fabricante": "Desconhecido",
@@ -76,14 +83,14 @@
         "tags": [],
         "status": "Offline",
         "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
+        "data_registro": "2025-09-11 21:54:25",
         "logs": []
     },
     {
-        "ip": "10.103.149.8",
-        "mac": "d0:94:66:b8:c3:10",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_8",
+        "ip": "192.168.18.209",
+        "mac": "c4:9d:ed:6e:09:db",
+        "subnet": "192.168.18.0/24",
+        "nome": "CLP_192_168_18_209",
         "grupo": "Sem Grupo",
         "metadata": {
             "fabricante": "Desconhecido",
@@ -96,14 +103,14 @@
         "tags": [],
         "status": "Offline",
         "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
+        "data_registro": "2025-09-11 21:54:25",
         "logs": []
     },
     {
-        "ip": "10.103.149.11",
-        "mac": "d0:94:66:a2:d9:7f",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_11",
+        "ip": "192.168.18.231",
+        "mac": "1e:a6:f7:8c:a4:0e",
+        "subnet": "192.168.18.0/24",
+        "nome": "CLP_192_168_18_231",
         "grupo": "Sem Grupo",
         "metadata": {
             "fabricante": "Desconhecido",
@@ -115,15 +122,18 @@
         },
         "tags": [],
         "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
+        "portas": [
+            22,
+            80
+        ],
+        "data_registro": "2025-09-11 21:54:25",
         "logs": []
     },
     {
-        "ip": "10.103.149.13",
-        "mac": "d0:94:66:e8:cc:78",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_13",
+        "ip": "192.168.18.233",
+        "mac": "96:6a:9e:73:e5:84",
+        "subnet": "192.168.18.0/24",
+        "nome": "CLP_192.168.18.233",
         "grupo": "Sem Grupo",
         "metadata": {
             "fabricante": "Desconhecido",
@@ -136,167 +146,7 @@
         "tags": [],
         "status": "Offline",
         "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
-        "logs": []
-    },
-    {
-        "ip": "10.103.149.14",
-        "mac": "d0:94:66:e8:ec:cc",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_14",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
-        "logs": []
-    },
-    {
-        "ip": "10.103.149.15",
-        "mac": "d0:94:66:e8:c0:6b",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_15",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
-        "logs": []
-    },
-    {
-        "ip": "10.103.149.18",
-        "mac": "d0:94:66:e8:cb:ee",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_18",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
-        "logs": []
-    },
-    {
-        "ip": "10.103.149.19",
-        "mac": "d0:94:66:e9:3d:77",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_19",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
-        "logs": []
-    },
-    {
-        "ip": "10.103.149.20",
-        "mac": "d0:94:66:a2:d9:6f",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_20",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
-        "logs": []
-    },
-    {
-        "ip": "10.103.149.23",
-        "mac": "d0:94:66:e9:31:47",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_23",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
-        "logs": []
-    },
-    {
-        "ip": "10.103.149.24",
-        "mac": "d0:94:66:e8:f1:18",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_24",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
-        "logs": []
-    },
-    {
-        "ip": "10.103.149.25",
-        "mac": "d0:94:66:e8:ec:4a",
-        "subnet": "10.103.149.0/24",
-        "nome": "CLP_10_103_149_25",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-08 17:03:53",
+        "data_registro": "2025-09-11 22:03:31",
         "logs": []
     }
 ]
