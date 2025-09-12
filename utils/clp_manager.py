@@ -1,89 +1,94 @@
 import json
 import os
-from datetime import datetime
 import logging
-
-import json
-import os
 from datetime import datetime
+import ipaddress
+from netaddr import EUI, NotRegisteredError
+from scapy.all import sniff, srp, Ether, ARP, IP, conf
+from .portas import escanear_portas  # Sua função de escaneamento de portas
 from utils.root import get_project_root
-import logging
 
-
-
-# Define a raiz do projeto usando a função
+# --- Configurações ---
 PROJECT_ROOT = get_project_root()
-# Define o caminho para o "banco de dados" usando a raiz correta
-CLPS_FILE = os.path.join(PROJECT_ROOT, 'clps.json')
+CLPS_FILE = os.path.join(PROJECT_ROOT, "clps.json")
 
-# --- O RESTO DO SEU CÓDIGO PERMANECE O MESMO ---
+# --- Carregamento do JSON existente ---
 def _carregar_clps():
-    """Função interna para ler o arquivo clps.json."""
     if not os.path.exists(CLPS_FILE):
-        return [] # Retorna lista vazia se o arquivo não existe
+        return []
     try:
         with open(CLPS_FILE, 'r', encoding='utf-8') as f:
             content = f.read()
-            if not content:
-                return []
-            return json.loads(content)
+            return json.loads(content) if content else []
     except (json.JSONDecodeError, IOError) as e:
         logging.error(f"Erro ao carregar clps.json: {e}")
         return []
 
-# Carrega os dados uma vez quando o módulo é importado, agindo como um cache
 _clps_data = _carregar_clps()
 
 
-# --- Funções Públicas (para serem usadas pelo resto do projeto) ---
-
+# --- Funções de salvamento ---
 def salvar_clps():
-    """Salva a lista de CLPs atual (em memória) de volta para o arquivo JSON."""
     try:
         with open(CLPS_FILE, 'w', encoding='utf-8') as f:
             json.dump(_clps_data, f, indent=4, ensure_ascii=False)
     except IOError as e:
         logging.error(f"Erro ao salvar clps.json: {e}")
 
-def buscar_todos():
-    """Retorna a lista completa de todos os CLPs."""
-    _clps_data = _carregar_clps()
-    return _clps_data
 
-def buscar_por_ip(ip_procurado):
-    """Busca um CLP específico pelo seu endereço IP."""
+# --- Funções de busca ---
+def buscar_por_ip(ip_procurado: str):
     for clp in _clps_data:
-        if clp.get('ip') == ip_procurado:
+        if clp.get("ip") == ip_procurado:
             return clp
     return None
 
-def criar_clp(dados, grupo="Sem Grupo"):
-    """
-    Cria um novo dicionário de CLP com a estrutura de dados completa e o adiciona
-    à lista principal.
-    """
 
-    ip = dados["ip"]
-    mac = dados["mac"]
-    subnet = dados["subnet"]
-    portas = dados["portas"]
-    # Verifica se o CLP já existe para não duplicar
-    clp = buscar_por_ip(ip)
-    if clp:
-        logging.warning(f"Tentativa de criar um CLP que já existe: {ip}")
-        print("Atualizando dados do clp")
-        clp["portas"] += dados["portas"]
-        return None
+# --- Criação / Enriquecimento de dispositivo ---
+def criar_dispositivo(dados, grupo="Sem Grupo"):
+    ip = dados.get("ip")
+    mac = dados.get("mac")
+    subnet = dados.get("subnet", "Desconhecida")
+    portas = dados.get("portas", [])
 
-    # O novo modelo de dados completo
-    novo_clp = {
+    # Verifica se já existe
+    existente = buscar_por_ip(ip)
+    if existente:
+        logging.info(f"[INFO] Atualizando dispositivo existente: {ip}")
+        existente["portas"] = list(set(existente.get("portas", []) + portas))
+        salvar_clps()
+        return existente
+
+    # Determina fabricante
+    try:
+        fabricante = str(EUI(mac).oui.registration().org)
+    except NotRegisteredError:
+        fabricante = "Desconhecido"
+
+    # Determina tipo pelo fabricante ou portas
+    tipo = "Desconhecido"
+    if fabricante.lower().startswith(("siemens", "rockwell", "schneider", "mitsubishi")):
+        tipo = "CLP"
+    elif 5000 in portas or 5357 in portas:
+        tipo = "Computador"
+    elif 22 in portas:
+        tipo = "Servidor ou Dispositivo IoT"
+    elif 80 in portas or 443 in portas:
+        tipo = "Smartphone / Tablet / Web Device"
+    elif 554 in portas or 8554 in portas:
+        tipo = "Câmera IP"
+
+    nome = f"{tipo}_{ip}" if tipo != "Desconhecido" else f"Desconhecido_{ip}"
+
+    dispositivo = {
         "ip": ip,
         "mac": mac,
         "subnet": subnet,
-        "nome": f"CLP_{ip}", # Nome padrão
+        "nome": nome,
+        "tipo": tipo,
         "grupo": grupo,
         "metadata": {
-            "fabricante": "Desconhecido",
+            "fabricante": fabricante,
             "modelo": "Desconhecido",
             "versao_firmware": "N/A",
             "data_instalacao": None,
@@ -94,13 +99,83 @@ def criar_clp(dados, grupo="Sem Grupo"):
         "status": "Offline",
         "portas": portas,
         "data_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "logs": []
+        "logs": [
+            {
+                "acao": "Enriquecimento",
+                "detalhes": f"Dispositivo identificado como {tipo}, fabricante: {fabricante}",
+                "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        ]
     }
-    
-    _clps_data.append(novo_clp)
-    salvar_clps() # Salva a lista atualizada no arquivo
-    
-    logging.info(f"Novo CLP criado e salvo: {ip} no grupo {grupo}")
-    return novo_clp
+
+    _clps_data.append(dispositivo)
+    salvar_clps()
+    logging.info(f"[INFO] Novo dispositivo criado: {ip}")
+    return dispositivo
 
 
+# --- Descoberta passiva ---
+def discover_subnets_passively(timeout=60):
+    discovered_ips = set()
+
+    def packet_handler(packet):
+        if packet.haslayer(ARP):
+            discovered_ips.add(packet[ARP].psrc)
+        elif packet.haslayer(IP):
+            discovered_ips.add(packet[IP].src)
+
+    print(f"[*] Ouvindo passivamente por {timeout} segundos...")
+    sniff(prn=packet_handler, store=0, timeout=timeout)
+
+    subnets = set()
+    for ip in discovered_ips:
+        try:
+            ip_obj = ipaddress.ip_address(ip)
+            if ip_obj.is_private:
+                network = ipaddress.ip_network(f"{ip}/24", strict=False)
+                subnets.add(str(network))
+        except ValueError:
+            continue
+
+    return list(subnets)
+
+
+# --- Scan ARP ativo ---
+def scan_arp_on_subnet(network_range, timeout=3):
+    clients_list = []
+    arp_request = ARP(pdst=network_range)
+    broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
+    arp_request_broadcast = broadcast / arp_request
+    answered_list, _ = srp(arp_request_broadcast, timeout=timeout, verbose=0)
+
+    for _, received_packet in answered_list:
+        client_info = {
+            "ip": received_packet.psrc,
+            "mac": received_packet.hwsrc,
+            "subnet": network_range
+        }
+        clients_list.append(client_info)
+    return clients_list
+
+
+# --- Descoberta completa ---
+def run_full_discovery(passive_timeout=60):
+    subnets = discover_subnets_passively(passive_timeout)
+    all_devices = []
+
+    for subnet in subnets:
+        clients = scan_arp_on_subnet(subnet)
+        for client in clients:
+            client["portas"] = escanear_portas(client["ip"])
+            dispositivo = criar_dispositivo(client)
+            all_devices.append(dispositivo)
+
+    return all_devices
+
+
+# --- Execução principal ---
+if __name__ == "__main__":
+    print("--- INICIANDO DESCOBERTA DE REDE ---")
+    dispositivos = run_full_discovery(passive_timeout=60)
+    print(f"[+] Total de dispositivos encontrados: {len(dispositivos)}")
+    print("--- EXECUÇÃO FINALIZADA ---")
