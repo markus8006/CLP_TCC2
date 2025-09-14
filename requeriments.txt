@@ -8,3 +8,5 @@ werkzeug
 pymodbus
 ipaddress
 netaddr
+pytest
+prospector
