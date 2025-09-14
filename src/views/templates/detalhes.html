@@ -56,12 +56,15 @@
         <li><strong>Fabricante:</strong> {{ clp.get('fabricante', 'Desconhecido') }}</li>
         <li><strong>ip:</strong> <span id="clpIp">{{ clp.ip }}</span></li>
         
-        <li><strong>Tags:</strong>
+        <li><strong>Tags Associadas:</strong>
             <ul class="tag-list" id="tag-list-container">
-                {% for tag in clp.tags %}
-                    <li class="tag-item">{{ tag }}</li>
+                {% for tag in clp.get('tags', []) %}
+                    <li class="tag-item">
+                        <span>{{ tag }}</span>
+                        <span class="remove-tag" data-tag="{{ tag }}" title="Remover Tag">&times;</span>
+                    </li>
                 {% else %}
-                    <li>Nenhuma tag definida.</li>
+                    <li id="no-tags-msg">Nenhuma tag associada.</li>
                 {% endfor %}
             </ul>
         </li>
@@ -89,6 +92,7 @@
     </form>
     <div id="tagMessage" style="margin-top: 10px;"></div>
 </div>
+
 
 <div class="informacao_clp">
     <h2>Leitor de Registrador Modbus</h2>
@@ -137,4 +141,41 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='scripts/graficos.js') }}"></script>
 <script src="{{ url_for('static', filename='scripts/detalhes.js') }}"></script>
+<script>
+const ip = "{{ clp.ip }}";  // <-- injeta o IP do Jinja no JS
+
+document.getElementById("btnAddTag").addEventListener("click", function () {
+    const novaTag = document.getElementById("inputTag").value.trim();
+    if (!novaTag) {
+        alert("Digite uma tag antes de adicionar");
+        return;
+    }
+
+    fetch(`/clp/${ip}/tags/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag: novaTag })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Resposta da API:", data);
+        if (data.success) {
+            // Atualiza lista sem reload
+            const tagList = document.getElementById("tag-list-container");
+            const li = document.createElement("li");
+            li.className = "tag-item";
+            li.textContent = novaTag;
+            tagList.appendChild(li);
+            document.getElementById("inputTag").value = "";
+        } else {
+            alert(data.message || "Erro ao associar tag");
+        }
+    })
+    .catch(error => {
+        console.error("Erro na requisição:", error);
+        alert("Erro inesperado ao comunicar com o servidor");
+    });
+});
+</script>
+
 {% endblock %}

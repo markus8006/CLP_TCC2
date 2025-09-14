@@ -1,0 +1,44 @@
+[
+    {
+    "version": "0.1.0",
+    "date": "2025-09-14",
+    "changes": {
+      "added": [
+        "Nova estruturação"
+      ],
+      "fixed" : [
+      ]
+    }
+  },
+  {
+    "version": "0.0.2",
+    "date": "2025-09-12",
+    "changes": {
+      "added": [
+        "Separação de clps e demais dispositivos",
+        "Funções de controle de clp, listar clps",
+        "Iniciando mecanismos de tags, ainda não testado"
+      ],
+      "fixed" : [
+        "Nomes dos clps salvos com . ao invés de _",
+        "Erro ao entrar na pagina inicial do site",
+        "Correção na api, estava clpip ao invés de clpIp"
+      ]
+    }
+  },
+  {
+    "version": "0.0.1",
+    "date": "2025-09-11",
+    "changes": {
+      "added": [
+        "Inicializão de notas de versão",
+        "Estrutura inicial de metadata.json",
+        "Mapeamento de portas via nmap",
+        "Atualização de portas em clps já salvos"
+      ],
+      "fixed" : [
+        "Nomes dos clps salvos com . ao invés de _"
+      ]
+    }
+  }
+]
