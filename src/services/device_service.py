@@ -117,3 +117,6 @@ def criar_dispositivo(dados: dict, grupo: str = "Sem Grupo") -> Dict[str, Any]:
 
 def listar_clps() -> List[Dict[str, Any]]:
     return list(_clps_data)
+
+def listar_devices() -> List[Dict[str, Any]]:
+    return list(_others_data)

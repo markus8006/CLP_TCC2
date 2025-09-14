@@ -254,6 +254,36 @@
                 "acao": "Enriquecimento",
                 "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Hon Hai Precision Ind. Co.,Ltd.",
                 "data": "2025-09-14 17:52:46"
+            },
+            {
+                "acao": "Atualizacao",
+                "detalhes": "Portas atualizadas: [135, 139, 445]",
+                "data": "2025-09-14 18:01:03"
+            },
+            {
+                "acao": "Atualizacao",
+                "detalhes": "Portas atualizadas: [135, 139, 445]",
+                "data": "2025-09-14 18:03:07"
+            },
+            {
+                "acao": "Atualizacao",
+                "detalhes": "Portas atualizadas: [135, 139, 445]",
+                "data": "2025-09-14 19:41:42"
+            },
+            {
+                "acao": "Atualizacao",
+                "detalhes": "Portas atualizadas: [135, 139, 445]",
+                "data": "2025-09-14 19:48:01"
+            },
+            {
+                "acao": "Atualizacao",
+                "detalhes": "Portas atualizadas: [135, 139, 445]",
+                "data": "2025-09-14 20:15:38"
+            },
+            {
+                "acao": "Atualizacao",
+                "detalhes": "Portas atualizadas: [135, 139, 445]",
+                "data": "2025-09-14 20:26:23"
             }
         ]
     }

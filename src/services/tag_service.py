@@ -2,11 +2,15 @@
 import json
 import os
 from src.models.Tag import Tag
-from src.utils.root.root import get_project_root
+from src.utils.root.paths import TAGS_FILE
 
-PROJECT_ROOT = get_project_root()
-TAGS_FILE = os.path.join(PROJECT_ROOT, "data/tags.json")
 
+# garante que o arquivo exista
+if not os.path.exists(TAGS_FILE):
+    with open(TAGS_FILE, "w", encoding="utf-8") as f:
+        json.dump([], f)  
+
+        
 class TagService:
     @staticmethod
     def _carregar_tags():
