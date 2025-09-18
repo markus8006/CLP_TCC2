@@ -16,6 +16,8 @@ Sistema de descoberta e gerenciamento de CLPs na rede, com interface web e backe
 
 ⚡ Extensível para integração futura com OPC UA.
 
+
+```bash
 📂 Estrutura do projeto
 CLP_TCC2/
 │── src/
@@ -28,6 +30,7 @@ CLP_TCC2/
 │── requirements.txt       # Dependências Python
 │── Dockerfile             # Containerização do projeto
 │── README.md              # Este arquivo
+```
 
 ⚙️ Requisitos
 
@@ -39,51 +42,62 @@ Dependências do requirements.txt
 
 🖥️ Como rodar localmente
 1. Clonar o repositório
+```bash
 git clone https://github.com/seu-user/clp_tcc2.git
 cd clp_tcc2
 
-2. Criar ambiente virtual
+3. Criar ambiente virtual
 python -m venv .venv
-
+```
 
 Ativar no Windows:
-
+```bash
 .venv\Scripts\activate
+```
 
 
 Ativar no Linux/Mac:
 
+```bash
 source .venv/bin/activate
+```
 
 3. Instalar dependências
+```bash
 pip install -r requirements.txt
-
-4. Rodar aplicação
+```
+5. Rodar aplicação
+```bash
 python run.py
-
+```
 
 Acesse em:
 👉 http://localhost:5000
 
 🐳 Rodando com Docker
 Buildar imagem
+```bash
 docker build -t clp_tcc2 .
+```
 
 Rodar container
+```bash
 docker run -p 5000:5000 clp_tcc2
+```
 
 📊 Logs
 
 Os logs são emitidos em JSON estruturado.
 Exemplo:
 
+```json
 {
   "timestamp": "2025-09-18T17:45:12",
   "level": "INFO",
   "evento": "Scanner iniciado",
   "detalhes": {"interface": "eth0"}
 }
-
+```
 🔮 Futuras melhorias
 
 Integração completa com OPC UA.
