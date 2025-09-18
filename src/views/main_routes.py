@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request
 from flask_login import login_required
 from src.controllers.clp_controller import ClpController
-from src.controllers.devices_controler import DeviceController
+from src.controllers.devices_controller import DeviceController
 
 main = Blueprint('main', __name__)
 
