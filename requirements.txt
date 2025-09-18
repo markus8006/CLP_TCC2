@@ -1,0 +1,12 @@
+Flask
+Flask-Login
+Flask-SQLAlchemy
+Flask-WTF
+psutil
+scapy
+werkzeug
+pymodbus
+ipaddress
+netaddr
+pytest
+prospector
