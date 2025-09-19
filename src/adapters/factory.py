@@ -1,6 +1,6 @@
 from .modbus_adapter import ModbusAdapter
 from .opcua_adapter import OPCUAAdapter
-from .legacy_modbus_adapter import LegacyModbusAdapter
+from .modbus_adapter import LegacyModbusAdapter
 
 def get_adapter(protocol: str):
     adapters = {

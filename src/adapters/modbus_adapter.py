@@ -1,21 +1,38 @@
-from .base_adapter import BaseAdapter
+# src/adapters/modbus_adapter.py
+from pymodbus.client import ModbusTcpClient
+from src.adapters.base_adapter import BaseAdapter
+from typing import Dict, Any
+import logging
+
+_active_clients = {}
 
 class ModbusAdapter(BaseAdapter):
-    def __init__(self):
-        self.client = None  # aqui entraria pymodbus.Client futuramente
+    def conectar(self, clp: Dict[str, Any], port: int = None) -> bool:
+        ip = clp["ip"]
+        p = port or (clp.get("portas") or [502])[0]
+        client = ModbusTcpClient(host=ip, port=p)
+        ok = client.connect()
+        if ok: _active_clients[ip] = client
+        clp["status"] = "Conectado" if ok else "Offline"
+        clp["logs"].append(f"Conectado via Modbus na porta {p}")
+        return ok
 
-    def connect(self, address: str, **kwargs):
-        print(f"[ModbusAdapter] Conectando em {address}")
-        # self.client = ModbusTcpClient(address)
+    def desconectar(self, clp: Dict[str, Any]) -> None:
+        ip = clp["ip"]
+        client = _active_clients.get(ip)
+        if client:
+            client.close()
+            _active_clients.pop(ip)
+        clp["status"] = "Offline"
+        clp["logs"].append("Desconectado Modbus")
 
-    def read_tag(self, tag: str):
-        print(f"[ModbusAdapter] Lendo {tag}")
-        # return self.client.read_holding_registers(...)
+    def ler(self, clp: Dict[str, Any], address: int, count: int = 1):
+        client = _active_clients.get(clp["ip"])
+        if client:
+            return client.read_holding_registers(address, count).registers
+        return None
 
-    def write_tag(self, tag: str, value):
-        print(f"[ModbusAdapter] Escrevendo {value} em {tag}")
-        # self.client.write_register(...)
-
-    def disconnect(self):
-        print("[ModbusAdapter] Desconectando")
-        # self.client.close()
+    def escrever(self, clp: Dict[str, Any], address: int, value):
+        client = _active_clients.get(clp["ip"])
+        if client:
+            client.write_register(address, value)
