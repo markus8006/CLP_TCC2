@@ -13,9 +13,10 @@ logger = setup_logger()
 def _discover_subnets_passively(timeout=60):
     if not verificar_permissoes:
         logger.warning({
-            "evento": "Permissões insuficientes",
+            "evento": "Permissoes insuficientes",
             "detalhes": "Execute como administrador/root para descoberta completa."
         })
+        return
 
     logger.info({
         "evento": "Iniciando escuta passiva",
@@ -105,11 +106,13 @@ def _scan_arp_on_subnet(network_range, timeout=3):
         return []
 
 
-def save_discoveries_to_json(devices_list, filename="data/discovery_results.json"):
+def save_discoveries_to_json(devices_list, filename="data/discovery_results.json"): 
     """Salva a lista de dispositivos descobertos em JSON."""
     if not devices_list:
         logger.warning({"evento": "Nenhum dispositivo para salvar"})
         return
+
+    
 
     try:
         sorted_list = sorted(devices_list, key=lambda x: ipaddress.ip_address(x['ip']))
@@ -121,11 +124,13 @@ def save_discoveries_to_json(devices_list, filename="data/discovery_results.json
         logger.error({"evento": "Erro ao salvar arquivo JSON", "arquivo": filename, "detalhes": str(e)})
 
 
+
+
 def run_full_discovery(passive_timeout=60):
     """Orquestra descoberta passiva e ativa de rede."""
     try:
         target_subnets = _discover_subnets_passively(timeout=passive_timeout)
-        if not target_subnets:
+        if not target_subnets:   
             logger.warning({"evento": "Nenhuma sub-rede ativa descoberta"})
             return []
 
