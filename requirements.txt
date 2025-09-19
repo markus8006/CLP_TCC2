@@ -10,3 +10,4 @@ ipaddress
 netaddr
 pytest
 colorama
+dotenv
