@@ -2,11 +2,20 @@ import ipaddress
 import json
 from scapy.all import sniff, srp, Ether, ARP, IP, conf
 from src.utils.network.portas import escanear_portas
+from src.utils.permissao.permissao import verificar_permissoes
+from src.utils.log.log import setup_logger
+
+logger = setup_logger()
 
 # [DEBUG] Aumenta o nível de verbosidade do Scapy para nos dar mais informações se necessário
 # conf.verb = 1 
 
 def _discover_subnets_passively(timeout=60):
+    if not verificar_permissoes:
+        logger.warning({
+            "evento" : "Permissões insuficientes: execute como administrador/root para descoberta completa."
+            })
+        
     """Escuta passivamente o tráfego da rede."""
     print(f"[*] Fase 1: Ouvindo passivamente o tráfego da rede por {timeout} segundos...")
     discovered_ips = set()
