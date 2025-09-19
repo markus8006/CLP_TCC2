@@ -9,3 +9,4 @@ pymodbus
 ipaddress
 netaddr
 pytest
+colorama
