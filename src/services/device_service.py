@@ -43,7 +43,7 @@ def criar_dispositivo(dados: dict, grupo: str = "Sem Grupo") -> Dict[str, Any]:
     mac = dados.get("mac")
     subnet = dados.get("subnet", "Desconhecida")
     portas = dados.get("portas", []) or []
-    protocolo = "Modbus"
+    protocolo = "modbus"
 
     if not ip:
         logging.warning("[WARN] criar_dispositivo chamado sem IP válido.")
