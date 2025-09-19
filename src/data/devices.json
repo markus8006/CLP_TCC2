@@ -1,290 +1,322 @@
 [
-    {
-        "ip": "192.168.18.1",
-        "mac": "f0:25:8e:aa:2f:24",
-        "subnet": "192.168.18.0/24",
-        "nome": "Smartphone / Tablet / Web Device_192.168.18.1",
-        "tipo": "Smartphone / Tablet / Web Device",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [
-            53,
-            80
-        ],
-        "data_registro": "2025-09-14 17:24:53",
-        "logs": [
-            {
-                "acao": "Enriquecimento",
-                "detalhes": "Dispositivo identificado como Smartphone / Tablet / Web Device, fabricante: HUAWEI TECHNOLOGIES CO.,LTD",
-                "data": "2025-09-14 17:24:53"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [53, 80]",
-                "data": "2025-09-14 17:32:51"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [53, 80]",
-                "data": "2025-09-14 17:46:42"
-            }
-        ]
+  {
+    "ip": "192.168.18.1",
+    "mac": "f0:25:8e:aa:2f:24",
+    "subnet": "192.168.18.0/24",
+    "nome": "Smartphone / Tablet / Web Device_192.168.18.1",
+    "tipo": "Smartphone / Tablet / Web Device",
+    "grupo": "Sem Grupo",
+    "metadata": {
+      "fabricante": "Desconhecido",
+      "modelo": "Desconhecido",
+      "versao_firmware": "N/A",
+      "data_instalacao": null,
+      "responsavel": "",
+      "numero_serie": ""
     },
-    {
-        "ip": "192.168.18.15",
-        "mac": "34:23:87:77:19:d2",
-        "subnet": "192.168.18.0/24",
-        "nome": "Desconhecido_192.168.18.15",
-        "tipo": "Desconhecido",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [
-            135,
-            139,
-            445
-        ],
-        "data_registro": "2025-09-14 17:24:53",
-        "logs": [
-            {
-                "acao": "Enriquecimento",
-                "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Hon Hai Precision Ind. Co.,Ltd.",
-                "data": "2025-09-14 17:24:53"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [135, 139, 445]",
-                "data": "2025-09-14 17:32:51"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [135, 139, 445]",
-                "data": "2025-09-14 17:46:42"
-            }
-        ]
+    "tags": [],
+    "status": "Offline",
+    "portas": [
+      53,
+      80
+    ],
+    "data_registro": "2025-09-14 17:24:53",
+    "logs": [
+      {
+        "acao": "Enriquecimento",
+        "detalhes": "Dispositivo identificado como Smartphone / Tablet / Web Device, fabricante: HUAWEI TECHNOLOGIES CO.,LTD",
+        "data": "2025-09-14 17:24:53"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [53, 80]",
+        "data": "2025-09-14 17:32:51"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [53, 80]",
+        "data": "2025-09-14 17:46:42"
+      }
+    ]
+  },
+  {
+    "ip": "192.168.18.15",
+    "mac": "34:23:87:77:19:d2",
+    "subnet": "192.168.18.0/24",
+    "nome": "Desconhecido_192.168.18.15",
+    "tipo": "Desconhecido",
+    "grupo": "Sem Grupo",
+    "metadata": {
+      "fabricante": "Desconhecido",
+      "modelo": "Desconhecido",
+      "versao_firmware": "N/A",
+      "data_instalacao": null,
+      "responsavel": "",
+      "numero_serie": ""
     },
-    {
-        "ip": "192.168.18.43",
-        "mac": "b6:57:b0:88:e4:4c",
-        "subnet": "192.168.18.0/24",
-        "nome": "Desconhecido_192.168.18.43",
-        "tipo": "Desconhecido",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-14 17:24:53",
-        "logs": [
-            {
-                "acao": "Enriquecimento",
-                "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Desconhecido",
-                "data": "2025-09-14 17:24:53"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: []",
-                "data": "2025-09-14 17:46:42"
-            }
-        ]
+    "tags": [],
+    "status": "Offline",
+    "portas": [
+      135,
+      139,
+      445
+    ],
+    "data_registro": "2025-09-14 17:24:53",
+    "logs": [
+      {
+        "acao": "Enriquecimento",
+        "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Hon Hai Precision Ind. Co.,Ltd.",
+        "data": "2025-09-14 17:24:53"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [135, 139, 445]",
+        "data": "2025-09-14 17:32:51"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [135, 139, 445]",
+        "data": "2025-09-14 17:46:42"
+      }
+    ]
+  },
+  {
+    "ip": "192.168.18.43",
+    "mac": "b6:57:b0:88:e4:4c",
+    "subnet": "192.168.18.0/24",
+    "nome": "Desconhecido_192.168.18.43",
+    "tipo": "Desconhecido",
+    "grupo": "Sem Grupo",
+    "metadata": {
+      "fabricante": "Desconhecido",
+      "modelo": "Desconhecido",
+      "versao_firmware": "N/A",
+      "data_instalacao": null,
+      "responsavel": "",
+      "numero_serie": ""
     },
-    {
-        "ip": "192.168.18.209",
-        "mac": "c4:9d:ed:6e:09:db",
-        "subnet": "192.168.18.0/24",
-        "nome": "Desconhecido_192.168.18.209",
-        "tipo": "Desconhecido",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-14 17:24:53",
-        "logs": [
-            {
-                "acao": "Enriquecimento",
-                "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Microsoft Corporation",
-                "data": "2025-09-14 17:24:53"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: []",
-                "data": "2025-09-14 17:32:51"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: []",
-                "data": "2025-09-14 17:46:42"
-            }
-        ]
+    "tags": [],
+    "status": "Offline",
+    "portas": [],
+    "data_registro": "2025-09-14 17:24:53",
+    "logs": [
+      {
+        "acao": "Enriquecimento",
+        "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Desconhecido",
+        "data": "2025-09-14 17:24:53"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: []",
+        "data": "2025-09-14 17:46:42"
+      }
+    ]
+  },
+  {
+    "ip": "192.168.18.209",
+    "mac": "c4:9d:ed:6e:09:db",
+    "subnet": "192.168.18.0/24",
+    "nome": "Desconhecido_192.168.18.209",
+    "tipo": "Desconhecido",
+    "grupo": "Sem Grupo",
+    "metadata": {
+      "fabricante": "Desconhecido",
+      "modelo": "Desconhecido",
+      "versao_firmware": "N/A",
+      "data_instalacao": null,
+      "responsavel": "",
+      "numero_serie": ""
     },
-    {
-        "ip": "192.168.18.203",
-        "mac": "c8:12:0b:1a:b5:b0",
-        "subnet": "192.168.18.0/24",
-        "nome": "Desconhecido_192.168.18.203",
-        "tipo": "Desconhecido",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [],
-        "data_registro": "2025-09-14 17:24:53",
-        "logs": [
-            {
-                "acao": "Enriquecimento",
-                "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Samsung Electronics Co.,Ltd",
-                "data": "2025-09-14 17:24:53"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: []",
-                "data": "2025-09-14 17:32:51"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: []",
-                "data": "2025-09-14 17:46:42"
-            }
-        ]
+    "tags": [],
+    "status": "Offline",
+    "portas": [],
+    "data_registro": "2025-09-14 17:24:53",
+    "logs": [
+      {
+        "acao": "Enriquecimento",
+        "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Microsoft Corporation",
+        "data": "2025-09-14 17:24:53"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: []",
+        "data": "2025-09-14 17:32:51"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: []",
+        "data": "2025-09-14 17:46:42"
+      }
+    ]
+  },
+  {
+    "ip": "192.168.18.203",
+    "mac": "c8:12:0b:1a:b5:b0",
+    "subnet": "192.168.18.0/24",
+    "nome": "Desconhecido_192.168.18.203",
+    "tipo": "Desconhecido",
+    "grupo": "Sem Grupo",
+    "metadata": {
+      "fabricante": "Desconhecido",
+      "modelo": "Desconhecido",
+      "versao_firmware": "N/A",
+      "data_instalacao": null,
+      "responsavel": "",
+      "numero_serie": ""
     },
-    {
-        "ip": "192.168.18.231",
-        "mac": "1e:a6:f7:8c:a4:0e",
-        "subnet": "192.168.18.0/24",
-        "nome": "Servidor ou Dispositivo IoT_192.168.18.231",
-        "tipo": "Servidor ou Dispositivo IoT",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [
-            22,
-            80
-        ],
-        "data_registro": "2025-09-14 17:24:53",
-        "logs": [
-            {
-                "acao": "Enriquecimento",
-                "detalhes": "Dispositivo identificado como Servidor ou Dispositivo IoT, fabricante: Desconhecido",
-                "data": "2025-09-14 17:24:53"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [22, 80]",
-                "data": "2025-09-14 17:32:51"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [22, 80]",
-                "data": "2025-09-14 17:46:42"
-            }
-        ]
+    "tags": [],
+    "status": "Offline",
+    "portas": [],
+    "data_registro": "2025-09-14 17:24:53",
+    "logs": [
+      {
+        "acao": "Enriquecimento",
+        "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Samsung Electronics Co.,Ltd",
+        "data": "2025-09-14 17:24:53"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: []",
+        "data": "2025-09-14 17:32:51"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: []",
+        "data": "2025-09-14 17:46:42"
+      }
+    ]
+  },
+  {
+    "ip": "192.168.18.231",
+    "mac": "1e:a6:f7:8c:a4:0e",
+    "subnet": "192.168.18.0/24",
+    "nome": "Servidor ou Dispositivo IoT_192.168.18.231",
+    "tipo": "Servidor ou Dispositivo IoT",
+    "grupo": "Sem Grupo",
+    "metadata": {
+      "fabricante": "Desconhecido",
+      "modelo": "Desconhecido",
+      "versao_firmware": "N/A",
+      "data_instalacao": null,
+      "responsavel": "",
+      "numero_serie": ""
     },
-    {
-        "ip": "192.168.18.8",
-        "mac": "34:23:87:77:19:d2",
-        "subnet": "192.168.18.0/24",
-        "nome": "Desconhecido_192.168.18.8",
-        "tipo": "Desconhecido",
-        "grupo": "Sem Grupo",
-        "metadata": {
-            "fabricante": "Desconhecido",
-            "modelo": "Desconhecido",
-            "versao_firmware": "N/A",
-            "data_instalacao": null,
-            "responsavel": "",
-            "numero_serie": ""
-        },
-        "tags": [],
-        "status": "Offline",
-        "portas": [
-            135,
-            139,
-            445
-        ],
-        "data_registro": "2025-09-14 17:52:46",
-        "logs": [
-            {
-                "acao": "Enriquecimento",
-                "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Hon Hai Precision Ind. Co.,Ltd.",
-                "data": "2025-09-14 17:52:46"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [135, 139, 445]",
-                "data": "2025-09-14 18:01:03"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [135, 139, 445]",
-                "data": "2025-09-14 18:03:07"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [135, 139, 445]",
-                "data": "2025-09-14 19:41:42"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [135, 139, 445]",
-                "data": "2025-09-14 19:48:01"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [135, 139, 445]",
-                "data": "2025-09-14 20:15:38"
-            },
-            {
-                "acao": "Atualizacao",
-                "detalhes": "Portas atualizadas: [135, 139, 445]",
-                "data": "2025-09-14 20:26:23"
-            }
-        ]
-    }
+    "tags": [],
+    "status": "Offline",
+    "portas": [
+      22,
+      80
+    ],
+    "data_registro": "2025-09-14 17:24:53",
+    "logs": [
+      {
+        "acao": "Enriquecimento",
+        "detalhes": "Dispositivo identificado como Servidor ou Dispositivo IoT, fabricante: Desconhecido",
+        "data": "2025-09-14 17:24:53"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [22, 80]",
+        "data": "2025-09-14 17:32:51"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [22, 80]",
+        "data": "2025-09-14 17:46:42"
+      }
+    ]
+  },
+  {
+    "ip": "192.168.18.8",
+    "mac": "34:23:87:77:19:d2",
+    "subnet": "192.168.18.0/24",
+    "nome": "Desconhecido_192.168.18.8",
+    "tipo": "Desconhecido",
+    "grupo": "Sem Grupo",
+    "metadata": {
+      "fabricante": "Desconhecido",
+      "modelo": "Desconhecido",
+      "versao_firmware": "N/A",
+      "data_instalacao": null,
+      "responsavel": "",
+      "numero_serie": ""
+    },
+    "tags": [],
+    "status": "Offline",
+    "portas": [
+      135,
+      139,
+      445
+    ],
+    "data_registro": "2025-09-14 17:52:46",
+    "logs": [
+      {
+        "acao": "Enriquecimento",
+        "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Hon Hai Precision Ind. Co.,Ltd.",
+        "data": "2025-09-14 17:52:46"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [135, 139, 445]",
+        "data": "2025-09-14 18:01:03"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [135, 139, 445]",
+        "data": "2025-09-14 18:03:07"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [135, 139, 445]",
+        "data": "2025-09-14 19:41:42"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [135, 139, 445]",
+        "data": "2025-09-14 19:48:01"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [135, 139, 445]",
+        "data": "2025-09-14 20:15:38"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: [135, 139, 445]",
+        "data": "2025-09-14 20:26:23"
+      }
+    ]
+  },
+  {
+    "ip": "192.168.0.20",
+    "mac": "AA:BB:CC:11:22:33",
+    "subnet": "Desconhecida",
+    "nome": "Desconhecido_192.168.0.20",
+    "tipo": "Desconhecido",
+    "grupo": "Sem Grupo",
+    "metadata": {
+      "fabricante": "Desconhecido",
+      "modelo": "Desconhecido",
+      "versao_firmware": "N/A",
+      "data_instalacao": null,
+      "responsavel": "",
+      "numero_serie": ""
+    },
+    "tags": [],
+    "status": "Offline",
+    "portas": [],
+    "data_registro": "2025-09-19 16:10:58",
+    "logs": [
+      {
+        "acao": "Enriquecimento",
+        "detalhes": "Dispositivo identificado como Desconhecido, fabricante: Desconhecido",
+        "data": "2025-09-19 16:10:58"
+      },
+      {
+        "acao": "Atualizacao",
+        "detalhes": "Portas atualizadas: []",
+        "data": "2025-09-19 16:11:52"
+      }
+    ]
+  }
 ]
