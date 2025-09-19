@@ -10,7 +10,8 @@ class Device:
     subnet: str
     portas: Optional[List[int]] = field(default_factory=list)
     nome: Optional[str] = None
-    tipo: str = "Desconhecido"  # Modbus, OPCUA
+    tipo: str = "Desconhecido"  
+    protocolo : str = "Desconhecido"
     grupo: str = "Sem Grupo"
     metadata: Dict[str, Any] = field(default_factory=lambda: {
         "fabricante": "Desconhecido",

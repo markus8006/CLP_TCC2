@@ -1,100 +1,106 @@
 [
-    {
-        "ip": "192.168.18.101",
-        "mac": "00:1A:2B:3C:4D:5F",
-        "subnet": "255.255.255.0",
-        "nome": "CLP-LinhaA-01",
-        "tipo": "Siemens S7-1200",
-        "grupo": "Linha de Produção A",
-        "metadata": {
-            "fabricante": "Siemens",
-            "modelo": "S7-1200",
-            "versao_firmware": "v2.5.1",
-            "data_instalacao": "2024-05-10",
-            "responsavel": "Eng. Guilherme",
-            "numero_serie": "SN12345678"
-        },
-        "tags": [
-            "LinhaA-01"
-        ],
-        "status": "Online",
-        "portas": [
-            80,
-            443,
-            502
-        ],
-        "data_registro": "2025-09-14 16:00:00",
-        "logs": [
-            {
-                "timestamp": "2025-09-14 16:00:00",
-                "evento": "Inicializado"
-            },
-            "2025-09-14 17:53:56 - Iniciando tentativa de conexão na porta 443...",
-            "2025-09-14 17:53:59 - Falha ao conectar usando a porta 443.",
-            "2025-09-14 17:53:59 - Estado após tentar conectar: False",
-            "2025-09-14 17:54:08 - Iniciando tentativa de conexão na porta 502...",
-            "2025-09-14 17:54:11 - Falha ao conectar usando a porta 502.",
-            "2025-09-14 17:54:11 - Estado após tentar conectar: False",
-            "2025-09-14 17:54:14 - Iniciando tentativa de conexão na porta 80...",
-            "2025-09-14 17:54:17 - Falha ao conectar usando a porta 80.",
-            "2025-09-14 17:54:17 - Estado após tentar conectar: False",
-            "2025-09-14 18:00:56 - Iniciando tentativa de conexão na porta 80...",
-            "2025-09-14 18:00:59 - Falha ao conectar usando a porta 80.",
-            "2025-09-14 18:00:59 - Estado após tentar conectar: False",
-            "2025-09-14 18:01:48 - Iniciando tentativa de conexão na porta 80...",
-            "2025-09-14 18:01:51 - Falha ao conectar usando a porta 80.",
-            "2025-09-14 18:01:51 - Estado após tentar conectar: False"
-        ],
-        "conectado": false
+  {
+    "ip": "192.168.18.101",
+    "mac": "00:1A:2B:3C:4D:5F",
+    "subnet": "255.255.255.0",
+    "nome": "CLP-LinhaA-01",
+    "tipo": "Siemens S7-1200",
+    "grupo": "Linha de Produção A",
+    "metadata": {
+      "fabricante": "Siemens",
+      "modelo": "S7-1200",
+      "versao_firmware": "v2.5.1",
+      "data_instalacao": "2024-05-10",
+      "responsavel": "Eng. Guilherme",
+      "numero_serie": "SN12345678"
     },
-    {
-        "ip": "192.168.18.102",
-        "mac": "00:1A:2B:3C:4D:5F",
-        "subnet": "255.255.255.0",
-        "nome": "CLP-LinhaA-02",
-        "tipo": "Siemens S7-1200",
-        "grupo": "Linha de Produção A",
-        "metadata": {
-            "fabricante": "Siemens",
-            "modelo": "S7-1200",
-            "versao_firmware": "v2.5.1",
-            "data_instalacao": "2024-05-10",
-            "responsavel": "Eng. Guilherme",
-            "numero_serie": "SN12345678"
-        },
-        "tags": [
-            "produção",
-            "linhaA",
-            "modbus"
-        ],
-        "status": "Online",
-        "portas": [
-            80,
-            443,
-            502
-        ],
-        "data_registro": "2025-09-14 16:00:00",
-        "logs": [
-            {
-                "timestamp": "2025-09-14 16:00:00",
-                "evento": "Inicializado"
-            },
-            "2025-09-14 17:53:56 - Iniciando tentativa de conexão na porta 443...",
-            "2025-09-14 17:53:59 - Falha ao conectar usando a porta 443.",
-            "2025-09-14 17:53:59 - Estado após tentar conectar: False",
-            "2025-09-14 17:54:08 - Iniciando tentativa de conexão na porta 502...",
-            "2025-09-14 17:54:11 - Falha ao conectar usando a porta 502.",
-            "2025-09-14 17:54:11 - Estado após tentar conectar: False",
-            "2025-09-14 17:54:14 - Iniciando tentativa de conexão na porta 80...",
-            "2025-09-14 17:54:17 - Falha ao conectar usando a porta 80.",
-            "2025-09-14 17:54:17 - Estado após tentar conectar: False",
-            "2025-09-14 18:00:56 - Iniciando tentativa de conexão na porta 80...",
-            "2025-09-14 18:00:59 - Falha ao conectar usando a porta 80.",
-            "2025-09-14 18:00:59 - Estado após tentar conectar: False",
-            "2025-09-14 18:01:48 - Iniciando tentativa de conexão na porta 80...",
-            "2025-09-14 18:01:51 - Falha ao conectar usando a porta 80.",
-            "2025-09-14 18:01:51 - Estado após tentar conectar: False"
-        ],
-        "conectado": false
-    }
+    "tags": [
+      "LinhaA-01"
+    ],
+    "status": "Online",
+    "portas": [
+      80,
+      443,
+      502
+    ],
+    "data_registro": "2025-09-14 16:00:00",
+    "logs": [
+      {
+        "timestamp": "2025-09-14 16:00:00",
+        "evento": "Inicializado"
+      },
+      "2025-09-14 17:53:56 - Iniciando tentativa de conexão na porta 443...",
+      "2025-09-14 17:53:59 - Falha ao conectar usando a porta 443.",
+      "2025-09-14 17:53:59 - Estado após tentar conectar: False",
+      "2025-09-14 17:54:08 - Iniciando tentativa de conexão na porta 502...",
+      "2025-09-14 17:54:11 - Falha ao conectar usando a porta 502.",
+      "2025-09-14 17:54:11 - Estado após tentar conectar: False",
+      "2025-09-14 17:54:14 - Iniciando tentativa de conexão na porta 80...",
+      "2025-09-14 17:54:17 - Falha ao conectar usando a porta 80.",
+      "2025-09-14 17:54:17 - Estado após tentar conectar: False",
+      "2025-09-14 18:00:56 - Iniciando tentativa de conexão na porta 80...",
+      "2025-09-14 18:00:59 - Falha ao conectar usando a porta 80.",
+      "2025-09-14 18:00:59 - Estado após tentar conectar: False",
+      "2025-09-14 18:01:48 - Iniciando tentativa de conexão na porta 80...",
+      "2025-09-14 18:01:51 - Falha ao conectar usando a porta 80.",
+      "2025-09-14 18:01:51 - Estado após tentar conectar: False",
+      "2025-09-19 15:45:30 - Iniciando tentativa de conexão na porta 80...",
+      "Adapter não disponível",
+      "2025-09-19 15:45:30 - Estado após tentar conectar: False",
+      "2025-09-19 15:46:45 - Iniciando tentativa de conexão na porta 80...",
+      "Adapter não disponível",
+      "2025-09-19 15:46:45 - Estado após tentar conectar: False"
+    ],
+    "conectado": false
+  },
+  {
+    "ip": "192.168.18.102",
+    "mac": "00:1A:2B:3C:4D:5F",
+    "subnet": "255.255.255.0",
+    "nome": "CLP-LinhaA-02",
+    "tipo": "Siemens S7-1200",
+    "grupo": "Linha de Produção A",
+    "metadata": {
+      "fabricante": "Siemens",
+      "modelo": "S7-1200",
+      "versao_firmware": "v2.5.1",
+      "data_instalacao": "2024-05-10",
+      "responsavel": "Eng. Guilherme",
+      "numero_serie": "SN12345678"
+    },
+    "tags": [
+      "produção",
+      "linhaA",
+      "modbus"
+    ],
+    "status": "Online",
+    "portas": [
+      80,
+      443,
+      502
+    ],
+    "data_registro": "2025-09-14 16:00:00",
+    "logs": [
+      {
+        "timestamp": "2025-09-14 16:00:00",
+        "evento": "Inicializado"
+      },
+      "2025-09-14 17:53:56 - Iniciando tentativa de conexão na porta 443...",
+      "2025-09-14 17:53:59 - Falha ao conectar usando a porta 443.",
+      "2025-09-14 17:53:59 - Estado após tentar conectar: False",
+      "2025-09-14 17:54:08 - Iniciando tentativa de conexão na porta 502...",
+      "2025-09-14 17:54:11 - Falha ao conectar usando a porta 502.",
+      "2025-09-14 17:54:11 - Estado após tentar conectar: False",
+      "2025-09-14 17:54:14 - Iniciando tentativa de conexão na porta 80...",
+      "2025-09-14 17:54:17 - Falha ao conectar usando a porta 80.",
+      "2025-09-14 17:54:17 - Estado após tentar conectar: False",
+      "2025-09-14 18:00:56 - Iniciando tentativa de conexão na porta 80...",
+      "2025-09-14 18:00:59 - Falha ao conectar usando a porta 80.",
+      "2025-09-14 18:00:59 - Estado após tentar conectar: False",
+      "2025-09-14 18:01:48 - Iniciando tentativa de conexão na porta 80...",
+      "2025-09-14 18:01:51 - Falha ao conectar usando a porta 80.",
+      "2025-09-14 18:01:51 - Estado após tentar conectar: False"
+    ],
+    "conectado": false
+  }
 ]
