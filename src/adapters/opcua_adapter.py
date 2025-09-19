@@ -1,6 +1,6 @@
-from .base_adapter import BaseAdapter
+from src.adapters.base_adapter import BaseAdapter
 
-class OPCUAAdapter(BaseAdapter):
+class OpcUaAdapter(BaseAdapter):
     def __init__(self):
         self.client = None  # aqui entraria opcua.Client futuramente
 

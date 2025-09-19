@@ -28,7 +28,7 @@ def setup_logger():
     return logger
 
 # Uso
-logger = setup_logger()
-logger.info("Iniciando descoberta de CLPs")
-logger.warning("Nenhum dispositivo respondeu na sub-rede 192.168.0.0/24")
-logger.error("Erro durante scan ARP: Permissões insuficientes")
+# logger = setup_logger()
+# logger.info("Iniciando descoberta de CLPs")
+# logger.warning("Nenhum dispositivo respondeu na sub-rede 192.168.0.0/24")
+# logger.error("Erro durante scan ARP: Permissões insuficientes")
