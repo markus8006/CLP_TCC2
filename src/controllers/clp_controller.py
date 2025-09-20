@@ -1,6 +1,6 @@
 # src/controllers/clp_controller.py
 from src.services.device_service import criar_dispositivo, buscar_por_ip, listar_clps
-from src.services.connection_service import conectar, desconectar
+from src.services.connection_service import conectar as conectar_service, desconectar as desconectar_service
 
 class ClpController:
     """
@@ -24,12 +24,12 @@ class ClpController:
         clp = buscar_por_ip(ip)
         if not clp:
             return False
-        return conectar(clp, port=port)
+        return conectar_service(clp, port=port)
 
     @staticmethod
     def desconectar(ip: str):
         clp = buscar_por_ip(ip)
         if not clp:
             return False
-        desconectar(clp)
+        desconectar_service(clp)
         return True
