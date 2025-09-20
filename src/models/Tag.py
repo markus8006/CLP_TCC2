@@ -6,5 +6,5 @@ class Tag:
         return {"nome": self.nome}
 
     @staticmethod
-    def from_dict(data: dict):
+    def from_dict(data: dict[str, str]):
         return Tag(nome=data["nome"])

@@ -8,7 +8,7 @@ class Device:
     ip: str
     mac: str
     subnet: str
-    portas: Optional[List[int]] = field(default_factory=list)
+    portas: Optional[List[int]] = field(default_factory=list[int])
     nome: Optional[str] = None
     tipo: str = "Desconhecido"  
     protocolo : str = "Desconhecido"
@@ -21,12 +21,15 @@ class Device:
         "responsavel": "",
         "numero_serie": ""
     })
-    tags: List[str] = field(default_factory=list)
+    tags: List[str] = field(default_factory=list[str])
     status: str = "Offline"
     data_registro: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    logs: List[Dict[str, str]] = field(default_factory=list)
+    logs: List[Dict[str, str]] = field(default_factory=list[Dict[str, str]])
 
     def to_dict(self) -> Dict[str, Any]:
+        if self.portas == None:
+            self.portas = []
+
         return {
             "ip": self.ip,
             "mac": self.mac or "",
