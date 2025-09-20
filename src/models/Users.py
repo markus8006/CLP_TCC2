@@ -19,12 +19,12 @@ class User(UserMixin, db.Model):
    
     role = db.Column(db.Enum(UserRole), nullable=False, default=UserRole.USER)
 
-    def set_password(self, password):
+    def set_password(self, password : str):
         """Cria um hash para a senha. (CORRIGIDO)"""
 
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password : str):
         """Verifica a senha fornecida."""
         return check_password_hash(self.password_hash, password)
 
