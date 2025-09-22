@@ -6,14 +6,13 @@ from src.utils.root.root import get_project_root
 from src.repositories.json_repo import carregar_arquivo, salvar_arquivo
 from src.models.Device import Device
 from src.utils.root.paths import DEVICES_FILE, CLPS_FILE
-import os
 
 PROJECT_ROOT = get_project_root()
 
 
 # Carrega inicial
-_clps_data: List[Dict[str, Any]] = carregar_arquivo(CLPS_FILE)
-_others_data: List[Dict[str, Any]] = carregar_arquivo(DEVICES_FILE)
+_clps_data: List[Dict[str, Any|List[Any]]] = carregar_arquivo(CLPS_FILE)
+_others_data: List[Dict[str, Any|List[Any]]] = carregar_arquivo(DEVICES_FILE)
 
 def buscar_todos() -> List[Dict[str, Any]]:
     return list(_clps_data)  # cópia superficial
