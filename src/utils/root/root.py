@@ -1,6 +1,6 @@
 import os, sys
 
-def get_project_root():
+def get_project_root() -> str:
     """
     Retorna o caminho raiz do projeto, funcionando tanto em modo de
     desenvolvimento (.py) quanto em modo de produção (.exe).

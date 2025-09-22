@@ -1,12 +1,13 @@
 from .modbus_adapter import ModbusAdapter
-from .opcua_adapter import OPCUAAdapter
-from .modbus_adapter import LegacyModbusAdapter
+from .opcua_adapter import OpcUaAdapter
+from .base_adapter import BaseAdapter
+from typing import Dict
 
-def get_adapter(protocol: str):
+def get_adapter(protocol: str) -> BaseAdapter:
+    adapters : Dict[str, object]
     adapters = {
         "modbus": ModbusAdapter,
-        "opcua": OPCUAAdapter,
-        "legacy": LegacyModbusAdapter
+        "opcua": OpcUaAdapter,
     }
     if protocol not in adapters:
         raise ValueError(f"Protocolo {protocol} não suportado")
