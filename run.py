@@ -17,7 +17,7 @@ def discovery_background_once():
     """
 Executa o scanner em background e salva os resultados em JSON.
     """
-logger.info({"evento": "Iniciando descoberta de CLPs"})
+    logger.info({"evento": "Iniciando descoberta de CLPs"})
     try:
         discovery_data = run_full_discovery()
 
