@@ -121,3 +121,52 @@ def listar_clps() -> List[Dict[str, Any]]:
 
 def listar_devices() -> List[Dict[str, Any]]:
     return list(_others_data)
+
+
+def atualizar_clp(json_antigo: Dict[str, Any], json_novo: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Atualiza os dados de um CLP existente com base no JSON antigo e no JSON novo.
+    """
+    ip = json_antigo.get("ip")
+    if not ip:
+        logging.warning("[WARN] atualizar_clp chamado sem IP válido no JSON antigo.")
+        return None
+
+    # Busca CLP correspondente
+    clp = next((c for c in _clps_data if c.get("ip") == ip), None)
+    if not clp:
+        logging.warning(f"[WARN] Nenhum CLP encontrado com IP {ip}.")
+        return None
+
+    # Atualiza campos do CLP
+    for key, value in json_novo.items():
+        if key == "logs":
+            # mescla logs em vez de sobrescrever
+            clp.setdefault("logs", []).extend(value)
+        elif key == "portas":
+            # mescla portas
+            portas_existentes = set(clp.get("portas", []))
+            portas_existentes.update(value or [])
+            clp["portas"] = sorted(list(portas_existentes))
+        elif key == "tags":
+            # mescla tags
+            tags_existentes = set(clp.get("tags", []))
+            tags_existentes.update(value or [])
+            clp["tags"] = sorted(list(tags_existentes))
+        elif key == "metadata":
+            # atualiza metadata campo a campo
+            clp.setdefault("metadata", {}).update(value or {})
+        else:
+            # substitui valor simples
+            clp[key] = value
+
+    # adiciona log automático
+    clp.setdefault("logs", []).append({
+        "acao": "Atualizacao",
+        "detalhes": f"Dispositivo atualizado com novos dados: {list(json_novo.keys())}",
+        "data": __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+
+    salvar_clps()
+    logging.info(f"[INFO] CLP {ip} atualizado com sucesso.")
+    return clp
