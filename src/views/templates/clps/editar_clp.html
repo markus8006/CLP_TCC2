@@ -1,1 +1,65 @@
-{% extends base.html %}
+{% extends "base.html" %}
+
+{% block css %} 
+<link rel="stylesheet" href="{{ url_for('static', filename='styles/editar_clp.css') }}">
+{% endblock %}
+{% block content %}
+
+<h2>Editar CLP</h2>
+
+<form method="POST">
+    <!-- Campos principais -->
+    <label>IP:</label>
+    <input type="text" name="ip" value="{{ clp.ip }}"><br>
+
+    <label>MAC:</label>
+    <input type="text" name="mac" value="{{ clp.mac }}"><br>
+
+    <label>Subnet:</label>
+    <input type="text" name="subnet" value="{{ clp.subnet }}"><br>
+
+    <label>Nome:</label>
+    <input type="text" name="nome" value="{{ clp.nome }}"><br>
+
+    <label>Tipo:</label>
+    <input type="text" name="tipo" value="{{ clp.tipo }}"><br>
+
+    <label>Grupo:</label>
+    <input type="text" name="grupo" value="{{ clp.grupo }}"><br>
+
+    <label>Status:</label>
+    <select name="status">
+        <option value="Online" {% if clp.status == "Online" %}selected{% endif %}>Online</option>
+        <option value="Offline" {% if clp.status == "Offline" %}selected{% endif %}>Offline</option>
+    </select><br>
+
+    <label>Conectado:</label>
+    <input type="checkbox" name="conectado" value="true" {% if clp.conectado %}checked{% endif %}><br>
+
+    <!-- Metadata -->
+    <h3>Metadata</h3>
+    {% for key, value in clp.metadata.items() %}
+        <label>{{ key|capitalize }}:</label>
+        <input type="text" name="metadata[{{ key }}]" value="{{ value }}"><br>
+    {% endfor %}
+
+    <!-- Tags -->
+    <h3>Tags</h3>
+    <textarea name="tags">{{ clp.tags | join(', ') }}</textarea><br>
+
+    <!-- Portas -->
+    <h3>Portas</h3>
+    <textarea name="portas">{{ clp.portas | join(', ') }}</textarea><br>
+
+    <!-- Data de registro -->
+    <label>Data Registro:</label>
+    <input type="text" name="data_registro" value="{{ clp.data_registro }}"><br>
+
+    <!-- Logs -->
+    <h3>Logs</h3>
+    <textarea name="logs" rows="10">{{ clp.logs | join('\n') }}</textarea><br>
+
+    <button type="submit">Salvar</button>
+</form>
+
+{% endblock %}
