@@ -1,8 +1,7 @@
 # /clp_app/users/auth_routes.py
 from flask import Blueprint, render_template, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
-import sys
-from pathlib import Path
+from sqlalchemy.exc import IntegrityError
 
 from src.views.forms import LoginForm, RegistrationForm
 from src.models.Users import User, UserRole
@@ -40,21 +39,43 @@ def logout():
     flash('Sessão encerrada.', 'info')
     return redirect(url_for('auth.login'))
 
+
+
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    # Por segurança, apenas o primeiro utilizador pode-se registar livremente.
-    if User.query.count() > 0 and not current_user.is_authenticated:
-        flash('O registo de novos utilizadores está desabilitado.', 'warning')
-        return redirect(url_for('auth.login'))
+    # Flag para saber se ainda não existe nenhum utilizador
+    first_user = (User.query.count() == 0)
+
+    # Se não for o primeiro utilizador, apenas ADMIN autenticado pode registar novos
+    if not first_user:
+        if not current_user.is_authenticated or not current_user.is_admin:
+            flash('O registo de novos utilizadores está desabilitado. Apenas o administrador pode criar utilizadores.', 'warning')
+            return redirect(url_for('auth.login'))
 
     form = RegistrationForm()
     if form.validate_on_submit():
-        # O primeiro utilizador registado será um ADMIN
-        user = User(username=form.username.data, role=UserRole(form.user_type.data))
+        # guarda o estado actual (evita recálculo depois do commit)
+        was_first = first_user
+
+        # definir papel: primeiro -> ADMIN, senão usar o escolhido no form
+        role = UserRole.ADMIN if was_first else UserRole(form.user_type.data)
+
+        user = User(username=form.username.data, role=role)
         user.set_password(form.password.data)
         db.session.add(user)
-        db.session.commit()
-        flash('Utilizador Administrador registado com sucesso! Por favor, faça o login.', 'success')
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Erro ao registar: nome de utilizador já existe ou problema no banco de dados.', 'danger')
+            return render_template('users_page/register.html', form=form, first_user=first_user)
+
+        if was_first:
+            flash('Primeiro utilizador (Administrador) registado com sucesso! Por favor, faça o login.', 'success')
+        else:
+            flash('Novo utilizador registado com sucesso!', 'success')
+
         return redirect(url_for('auth.login'))
-        
-    return render_template('users_page/register.html', form=form)
+
+    return render_template('users_page/register.html', form=form, first_user=first_user)
