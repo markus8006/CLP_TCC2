@@ -1,0 +1,385 @@
+/* ===========================================
+   Admin DB CSS — Segue o padrão fornecido
+   Salve em: static/styles/admin_db.css
+   =========================================== */
+
+/* --- Layout Geral e Reset Básico --- */
+:root {
+    --primary-color: #8400ff;
+    --secondary-color: #cc00ff;
+    --accent: #6e0096;
+    --muted-accent: rgba(110,0,150,0.08);
+    --dark-bg: #0a0018;
+    --panel-bg: rgba(255,255,255,0.03);
+    --glass-border: rgba(255,255,255,0.06);
+    --text-color: whitesmoke;
+    --success: #25b37a;
+    --danger: #ff4d6d;
+    --warning: #ffb86b;
+    --shadow: 0 8px 30px rgba(5,0,20,0.5);
+    --radius: 12px;
+    --container-max: 1100px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+    color: var(--text-color);
+    background: radial-gradient(circle at top left, var(--dark-bg) 0%, #090016 90%, #1b0030 100%);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+    color: var(--secondary-color);
+    text-decoration: none;
+    transition: color 0.25s ease;
+}
+
+a:hover {
+    color: var(--text-color);
+}
+
+h1, h2 {
+    color: var(--secondary-color);
+    text-shadow: 0 2px 8px rgba(8, 0, 20, 0.2);
+    letter-spacing: 1px;
+    margin: 0 0 8px 0;
+}
+
+.main-content {
+    padding: 28px;
+    margin-left: 60px; /* Espaço para o menu fechado */
+    transition: margin-left 0.3s;
+    max-width: var(--container-max);
+    margin-right: auto;
+    margin-left: 60px;
+}
+
+/* --- Navegação / Sidebar (já existente) --- */
+#menuBtn {
+    font-size: 24px;
+    cursor: pointer;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    color: var(--accent);
+    z-index: 1001; /* Maior que o sidenav */
+    background: rgba(255, 255, 255, 0.03);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+#menuBtn:hover {
+    color: white;
+    background: var(--accent);
+    transform: scale(1.06);
+}
+
+.sidenav {
+    height: 100%;
+    width: 0; /* Começa fechado */
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    left: 0;
+    background: linear-gradient(160deg, #0c0710 40%, var(--accent) 100%);
+    overflow-x: hidden;
+    transition: 0.3s;
+    padding-top: 80px; /* Espaço para o botão não sobrepor */
+    border-right: 1px solid rgba(255,255,255,0.03);
+}
+
+.sidenav nav a {
+    padding: 12px 24px;
+    font-size: 18px;
+    display: block;
+    color: rgba(255,255,255,0.9);
+    transition: background 0.18s, color 0.18s;
+    border-left: 4px solid transparent;
+}
+
+.sidenav nav a:hover {
+    background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    color: white;
+    border-left-color: var(--secondary-color);
+}
+
+/* Classe para ser controlada via JS */
+.sidenav-open {
+    width: 250px;
+}
+.main-content-shifted {
+    margin-left: 250px;
+}
+
+/* --- Cards e Painéis --- */
+.card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--glass-border);
+    margin-bottom: 18px;
+}
+
+.card .card-title {
+    margin-bottom: 12px;
+    font-size: 1.15rem;
+    color: var(--secondary-color);
+}
+
+/* --- Tabela (lista de usuários) --- */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    background: transparent;
+    margin-top: 8px;
+}
+
+.table thead th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    letter-spacing: 0.6px;
+    color: rgba(255,255,255,0.9);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+}
+
+.table tbody td {
+    padding: 12px 16px;
+    font-size: 0.92rem;
+    vertical-align: middle;
+    border-bottom: 1px dashed rgba(255,255,255,0.02);
+    color: rgba(255,255,255,0.92);
+}
+
+.table tbody tr:hover {
+    background: linear-gradient(90deg, rgba(110,0,150,0.03), rgba(204,0,255,0.03));
+    transform: translateY(-1px);
+}
+
+/* Coluna de ações */
+.table .actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Badge para role */
+.role-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    border: 1px solid rgba(255,255,255,0.04);
+    background: rgba(255,255,255,0.02);
+}
+
+/* cores por role */
+.role-admin { color: #fff; background: linear-gradient(90deg, #7a00e6, #b000ff); box-shadow: 0 6px 18px rgba(136,0,204,0.15); }
+.role-user { color: #0b1b2b; background: linear-gradient(90deg, rgba(255,255,255,0.92), rgba(255,255,255,0.86)); color: #111; border: 1px solid rgba(0,0,0,0.06); }
+.role-moderator { color: #050b0f; background: linear-gradient(90deg, #ffd89b, #ffb86b); }
+
+/* --- Buttons (estilizados) --- */
+.btn {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease;
+    background: var(--panel-bg);
+    color: var(--text-color);
+    border: 1px solid var(--glass-border);
+}
+
+/* variantes */
+.btn-primary {
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    box-shadow: 0 8px 24px rgba(132,0,255,0.18);
+    color: white;
+}
+
+.btn-warning {
+    background: linear-gradient(90deg, #ffba6b, #ff9a4d);
+    color: #120300;
+}
+
+.btn-danger {
+    background: linear-gradient(90deg, #ff6b81, #ff4d6d);
+    color: white;
+}
+
+.btn-ghost {
+    background: transparent;
+    border: 1px dashed rgba(255,255,255,0.04);
+}
+
+/* hover */
+.btn:hover {
+    transform: translateY(-3px);
+    opacity: 0.98;
+}
+
+/* botão bloco */
+.btn-block {
+    display: block;
+    width: 100%;
+}
+
+/* --- Formulários --- */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.form-group {
+    margin-bottom: 12px;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.9);
+}
+
+input[type="text"],
+input[type="password"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--panel-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    color: var(--text-color);
+    outline: none;
+    transition: box-shadow 0.12s, transform 0.12s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    box-shadow: 0 6px 20px rgba(110,0,150,0.08);
+    transform: translateY(-2px);
+    border-color: rgba(204,0,255,0.5);
+}
+
+/* helper text */
+.small-text {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.6);
+}
+
+/* --- Search / Filters bar --- */
+.filters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.search {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--panel-bg);
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+}
+
+.search input {
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    padding: 6px;
+}
+
+.search input::placeholder { color: rgba(255,255,255,0.45); }
+
+/* --- Paginação simples --- */
+.pagination {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+.page-item {
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+}
+
+.page-item.active {
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    box-shadow: 0 8px 20px rgba(132,0,255,0.12);
+}
+
+/* --- Responsividade --- */
+@media (max-width: 900px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .main-content {
+        padding: 18px;
+        margin-left: 0;
+    }
+
+    .sidenav-open {
+        width: 200px;
+    }
+}
+
+/* --- Micro-interações --- */
+.fade-in {
+    animation: fadeIn 0.28s ease both;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Footer / small stuff --- */
+.card-footer {
+    padding-top: 12px;
+    margin-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.02);
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.65);
+}
+
+/* util */
+.text-muted { color: rgba(255,255,255,0.6); }
+.center { text-align: center; }
+.flex { display: flex; }
+.flex-between { display:flex; justify-content:space-between; align-items:center; gap:12px; }

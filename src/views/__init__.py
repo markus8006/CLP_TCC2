@@ -70,6 +70,9 @@ def create_app():
 
         from src.views.api_routes import clp_bp
         app.register_blueprint(clp_bp)
+
+        from src.views.admin_routes import adm_bp as adm_blueprint
+        app.register_blueprint(adm_blueprint)
         
 
     return app

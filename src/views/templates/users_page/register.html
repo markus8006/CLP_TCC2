@@ -2,6 +2,8 @@
 
 {% block title %}Registar - Gerenciador de CLPs{% endblock %}
 
+{% block css %} <link rel="stylesheet" href="{{ url_for('static', filename='styles/users_page/register.css') }}"> {% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6 col-lg-4">
@@ -18,6 +20,15 @@
                         {{ form.username(class="form-control", placeholder="Escolha um nome de utilizador") }}
                         
                         {% for error in form.username.errors %}
+                            <span class="text-danger small">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-group">
+                        {{ form.user_type.label(class="font-weight-bold") }}
+                        {{ form.user_type(class="form-control") }}
+                        
+                        {% for error in form.user_type.errors %}
                             <span class="text-danger small">{{ error }}</span>
                         {% endfor %}
                     </div>
