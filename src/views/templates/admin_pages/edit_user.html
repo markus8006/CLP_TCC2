@@ -1,0 +1,56 @@
+{% extends "users_page/users_base.html" %}
+
+{% block title %}Editar Usuário - Gerenciador de CLPs{% endblock %}
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='styles/admin_pages/edit_user.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-4">Editar Usuário</h2>
+
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="form-group mb-3">
+                        {{ form.username.label(class="font-weight-bold") }}
+                        {{ form.username(class="form-control", placeholder="Digite o nome de usuário") }}
+                        {% for error in form.username.errors %}
+                            <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-group mb-3">
+                        {{ form.password.label(class="font-weight-bold") }}
+                        {{ form.password(class="form-control", placeholder="Nova senha (deixe em branco para não alterar)") }}
+                        {% for error in form.password.errors %}
+                            <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+
+                    {% if current_user.is_admin %}
+                    <div class="form-group mb-3">
+                        {{ form.user_type.label(class="font-weight-bold") }}
+                        {{ form.user_type(class="form-select") }}
+                        {% for error in form.user_type.errors %}
+                            <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-success btn-block") }}
+                    </div>
+                </form>
+            </div>
+
+            <div class="card-footer text-center">
+                <a href="{{ url_for('adm.admin_db_viewer') }}" class="btn btn-link">Voltar à lista de usuários</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
