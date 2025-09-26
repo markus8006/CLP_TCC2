@@ -1,6 +1,7 @@
 # src/controllers/clp_controller.py
 from src.services.device_service import criar_dispositivo, buscar_por_ip, listar_clps, atualizar_clp
 from src.services.connection_service import conectar as conectar_service, desconectar as desconectar_service
+from typing import List, Dict, Any
 
 class ClpController:
     """
@@ -8,7 +9,7 @@ class ClpController:
     Exponha aqui métodos fáceis de usar.
     """
     @staticmethod
-    def listar():
+    def listar() ->  List[Dict[str, Any]]:
         return listar_clps()
 
     @staticmethod
@@ -16,11 +17,11 @@ class ClpController:
         return buscar_por_ip(ip)
 
     @staticmethod
-    def criar(dados: dict):
+    def criar(dados: Dict[str, str|List[Any]]):
         return criar_dispositivo(dados)
     
     @staticmethod
-    def editar_clp(clp, new_clp):
+    def editar_clp(clp : Dict[str, str|List[Any]], new_clp : Dict[str, str|List[Any]]):
         atualizar_clp(clp, new_clp)
 
 
