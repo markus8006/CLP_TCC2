@@ -1,10 +1,10 @@
 from .modbus_adapter import ModbusAdapter
 from .opcua_adapter import OpcUaAdapter
 from .base_adapter import BaseAdapter
-from typing import Dict
+from typing import Dict, Type
 
 def get_adapter(protocol: str) -> BaseAdapter:
-    adapters : Dict[str, object]
+    adapters : Dict[str, Type[BaseAdapter]]
     adapters = {
         "modbus": ModbusAdapter,
         "opcua": OpcUaAdapter,
