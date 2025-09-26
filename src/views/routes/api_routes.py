@@ -13,7 +13,7 @@ from src.services.connection_service import (
 )
 from src.services.device_service import salvar_clps
 
-clp_bp = Blueprint("clp_api", __name__, url_prefix="/clp")
+clp_api = Blueprint("clp_api", __name__, url_prefix="/clp")
 
 
 def _run_in_thread(target, *args, **kwargs):
@@ -25,7 +25,7 @@ def _run_in_thread(target, *args, **kwargs):
 # -------------------------
 # Rotas de Tags (globais)
 # -------------------------
-@clp_bp.route("/tags", methods=['POST'])
+@clp_api.route("/tags", methods=['POST'])
 def add_global_tag():
     """Adiciona uma tag à lista global de tags."""
     data = request.get_json() or {}
@@ -52,7 +52,7 @@ def add_global_tag():
         }), 200
 
 
-@clp_bp.route("/tags", methods=['GET'])
+@clp_api.route("/tags", methods=['GET'])
 def get_all_tags():
     """Retorna a lista completa de tags globais salvas."""
     tags = [t["nome"] for t in TagController.listar_tags()]
@@ -62,7 +62,7 @@ def get_all_tags():
 # -------------------------
 # Associa / desassocia tag em CLP
 # -------------------------
-@clp_bp.route("/<ip>/tags/assign", methods=['POST'])
+@clp_api.route("/<ip>/tags/assign", methods=['POST'])
 def assign_tag_to_clp(ip):
     """Associa uma tag existente a um CLP específico."""
     clp_dict = ClpController.obter_por_ip(ip)
@@ -92,7 +92,7 @@ def assign_tag_to_clp(ip):
         return jsonify({"success": False, "message": "Erro interno ao salvar tag", "error": str(e)}), 500
 
 
-@clp_bp.route('/<ip>/tags/<tag>', methods=['DELETE'])
+@clp_api.route('/<ip>/tags/<tag>', methods=['DELETE'])
 def unassign_tag_from_clp(ip, tag):
     """Desassocia uma tag de um CLP específico."""
     clp_dict = ClpController.obter_por_ip(ip)
@@ -122,7 +122,7 @@ def unassign_tag_from_clp(ip, tag):
 # -------------------------
 # Rotas de conexão / controle do CLP
 # -------------------------
-@clp_bp.route("/<ip>/connect", methods=["POST"])
+@clp_api.route("/<ip>/connect", methods=["POST"])
 def clp_connect(ip):
     """Inicia a tentativa de conexão (em thread) para não travar o request."""
     clp_dict = ClpController.obter_por_ip(ip)
@@ -152,7 +152,7 @@ def clp_connect(ip):
     return jsonify({"ok": True, "message": "Conexão iniciada em background"}), 202
 
 
-@clp_bp.route("/<ip>/disconnect", methods=["POST"])
+@clp_api.route("/<ip>/disconnect", methods=["POST"])
 def clp_disconnect(ip):
     clp_dict = ClpController.obter_por_ip(ip)
     if not clp_dict:
@@ -167,7 +167,7 @@ def clp_disconnect(ip):
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@clp_bp.route("/<ip>/info", methods=["GET"])
+@clp_api.route("/<ip>/info", methods=["GET"])
 def clp_info(ip):
     """Retorna informações de status do CLP (compatível com antigo get_info)."""
     clp_dict = ClpController.obter_por_ip(ip)
@@ -190,7 +190,7 @@ def clp_info(ip):
     return jsonify({"ok": True, "clp": info}), 200
 
 
-@clp_bp.route("/<ip>/add_port", methods=["POST"])
+@clp_api.route("/<ip>/add_port", methods=["POST"])
 def clp_add_port(ip):
     """Adiciona uma porta conhecida ao CLP (e salva)."""
     clp_dict = ClpController.obter_por_ip(ip)
@@ -216,7 +216,7 @@ def clp_add_port(ip):
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@clp_bp.route("/<ip>/read_register", methods=["POST"])
+@clp_api.route("/<ip>/read_register", methods=["POST"])
 def clp_read_register(ip):
     """Lê um registrador via Modbus a partir do cliente ativo."""
     clp_dict = ClpController.obter_por_ip(ip)
@@ -255,7 +255,7 @@ def clp_read_register(ip):
 # -------------------------
 # Utilitário: renomear CLP
 # -------------------------
-@clp_bp.route('/rename', methods=['POST'])
+@clp_api.route('/rename', methods=['POST'])
 def rename_clp():
     """Endpoint da API para renomear um CLP."""
     data = request.get_json() or {}
@@ -277,7 +277,7 @@ def rename_clp():
         return jsonify({'success': False, 'message': 'Erro interno no servidor.'}), 500
     
 
-@clp_bp.route("/adicionar_tag/<ip>", methods=["POST"])
+@clp_api.route("/adicionar_tag/<ip>", methods=["POST"])
 def adicionar_tags(ip):
     clp = ClpController.obter_por_ip(ip)
     clp_tags = clp[""]

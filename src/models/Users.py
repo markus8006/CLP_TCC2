@@ -30,11 +30,11 @@ class User(UserMixin, db.Model):
 
     @property
     def is_admin(self):
-        return self.role == UserRole.ADMIN
+        return self.role == UserRole.ADMIN 
     
     @property
     def is_moderator(self):
-        return self.role == UserRole.MODERATOR
+        return self.role == UserRole.MODERATOR or self.role == UserRole.ADMIN
 
 
     def __repr__(self):
