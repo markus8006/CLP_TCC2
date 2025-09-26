@@ -1,8 +1,12 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
+from wtforms import StringField, PasswordField, SubmitField, SelectField
 from wtforms.validators import DataRequired, EqualTo, ValidationError
 from src.models.Users import User
+from flask_wtf import FlaskForm
+from wtforms import SubmitField
 
+class DeleteForm(FlaskForm):
+    submit = SubmitField('Excluir')
 
 
 class LoginForm(FlaskForm):
@@ -15,6 +19,14 @@ class RegistrationForm(FlaskForm):
     password = PasswordField('Senha', validators=[DataRequired()])
     password2 = PasswordField(
         'Repetir Senha', validators=[DataRequired(), EqualTo('password', message='As senhas devem ser iguais.')])
+    user_type = SelectField('Tipo de Conta', 
+                            choices=[
+                                ('user', 'Utilizador Padrão'),
+                                ('admin', 'Administrador'),
+                                ('VIEWER', 'Apenas Visualização')
+                            ],
+                            validators=[DataRequired()])
+
     submit = SubmitField('Registrar')
 
     def validate_username(self, username):

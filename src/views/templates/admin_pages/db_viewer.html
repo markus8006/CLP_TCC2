@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Admin — Database Viewer{% endblock %}
+
+
+{% block css %}     
+<link rel="stylesheet" href="{{ url_for('static', filename='styles/admin_pages/db_viewer.css') }}"> 
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+  <div class="flex-between fade-in">
+    <div>
+      <h2>Usuários</h2>
+      <p class="small-text">Gerencie contas do sistema — editar, excluir ou criar novos usuários.</p>
+    </div>
+    <div>
+      <a class="btn btn-primary" href="/register">Novo Usuário</a>
+    </div>
+  </div>
+
+  <div class="card fade-in">
+    <!-- filtros / busca (opcional) -->
+    <div class="filters">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 21l-4.35-4.35"></path></svg>
+        <input type="text" placeholder="Pesquisar usuário..." name="q" />
+      </div>
+      <!-- você pode adicionar selects/filtragens aqui -->
+    </div>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Usuário</th>
+            <th>Role</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr>
+            <td>{{ user.id }}</td>
+            <td>{{ user.username }}</td>
+            <td>
+              {% if user.role %}
+                <span class="role-badge role-{{ user.role.name.lower() }}">{{ user.role.name.title() }}</span>
+              {% else %}
+                <span class="role-badge">—</span>
+              {% endif %}
+            </td>
+            <td class="actions">
+              <a class="btn btn-warning" href="{{ url_for('adm.edit_user', user_id=user.id) }}">Editar</a>
+
+                <form method="post" action="{{ url_for('adm.delete_user', user_id=user.id) }}">
+                    {{ delete_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-danger">Excluir</button>
+                </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="center text-muted">Nenhum usuário encontrado.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- paginação (opcional) -->
+    <div class="flex-between">
+      <div class="small-text">Total: {{ users|length }}</div>
+      <div class="pagination" role="navigation" aria-label="Pagination">
+        <!-- Renderize links de paginação aqui se usar paginação -->
+        <div class="page-item">1</div>
+        <div class="page-item">2</div>
+        <div class="page-item">3</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

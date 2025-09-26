@@ -50,7 +50,7 @@ def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         # O primeiro utilizador registado será um ADMIN
-        user = User(username=form.username.data, role=UserRole.ADMIN)
+        user = User(username=form.username.data, role=UserRole(form.user_type.data))
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
