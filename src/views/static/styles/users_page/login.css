@@ -9,7 +9,8 @@
 
 
 .card {
-    background-color : var(--light-dark-bg)
+    background-color : var(--light-dark-bg);
+    border-radius : 18px;
 }
 
 .form-control {
