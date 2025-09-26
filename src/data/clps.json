@@ -49,7 +49,10 @@
       "2025-09-19 15:45:30 - Estado após tentar conectar: False",
       "2025-09-19 15:46:45 - Iniciando tentativa de conexão na porta 80...",
       "Adapter não disponível",
-      "2025-09-19 15:46:45 - Estado após tentar conectar: False"
+      "2025-09-19 15:46:45 - Estado após tentar conectar: False",
+      "2025-09-26 02:19:34 - Iniciando tentativa de conexão na porta 443...",
+      "Adapter não disponível",
+      "2025-09-26 02:19:34 - Estado após tentar conectar: False"
     ],
     "conectado": false
   },
