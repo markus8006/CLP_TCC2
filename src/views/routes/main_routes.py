@@ -101,13 +101,3 @@ def todos_dispositivos():
 
 
 
-@main.route('/clp/<ip>')
-@login_required
-def detalhes_clps(ip):
-    """Página de detalhes para um CLP específico."""
-    # usamos o controller para obter o CLP por IP
-    clp_dict = ClpController.obter_por_ip(ip)
-    if not clp_dict:
-        # podes trocar por 404, flash ou redirect conforme tua UI
-        return render_template("detalhes.html", clp={}), 404
-    return render_template("detalhes.html", clp=clp_dict)

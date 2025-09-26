@@ -61,18 +61,21 @@ def create_app():
 
         # --- REGISTO DOS BLUEPRINTS ---
         # Regista as rotas principais (dashboard, etc.)
-        from src.views.main_routes import main as main_blueprint
+        from src.views.routes.main_routes import main as main_blueprint
         app.register_blueprint(main_blueprint)
 
         # Regista as rotas de autenticação (login, logout, etc.)
-        from src.views.auth_routes import auth_bp as auth_blueprint
+        from src.views.routes.auth_routes import auth_bp as auth_blueprint
         app.register_blueprint(auth_blueprint)
 
-        from src.views.api_routes import clp_bp
-        app.register_blueprint(clp_bp)
+        from src.views.routes.api_routes import clp_api
+        app.register_blueprint(clp_api)
 
-        from src.views.admin_routes import adm_bp as adm_blueprint
+        from src.views.routes.admin_routes import adm_bp as adm_blueprint
         app.register_blueprint(adm_blueprint)
+
+        from src.views.routes.clps_routes import clps_bp
+        app.register_blueprint(clps_bp)
         
 
     return app
