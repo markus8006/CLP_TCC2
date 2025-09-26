@@ -37,7 +37,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash('Você foi desconectado.', 'info')
+    flash('Sessão encerrada.', 'info')
     return redirect(url_for('auth.login'))
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
