@@ -708,7 +708,7 @@ if __name__ == "__main__":
     logger.info({"evento": "--- SCRIPT DE DESCOBERTA INICIADO ---"})
     devices = run_full_discovery(save_per_interface=True, use_nmap=USE_NMAP_FOR_FULL_PORT_SCAN)
     if devices:
-        logger.info({"evento": "Execução finalizada com sucesso", "total": len(devices)}))
+        logger.info({"evento": "Execução finalizada com sucesso", "total": len(devices)})
     else:
         logger.info({"evento": "Nenhum dispositivo encontrado ou falha na execução."})
     logger.info({"evento": "--- FIM ---"})
