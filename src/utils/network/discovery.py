@@ -6,6 +6,9 @@ import socket
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
+import tempfile
+import copy
+import re
 from typing import List, Dict, Optional, Any, Set, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import time
@@ -315,6 +318,156 @@ def tcp_probe(ip: str, ports: List[int], timeout: float = DEFAULT_TCP_TIMEOUT) -
 
 
 # -----------------------
+# Helpers para colapso / merge por MAC
+# -----------------------
+def _normalize_mac(mac: Optional[str]) -> Optional[str]:
+    """Normaliza MAC para formato aa:bb:cc:dd:ee:ff ou retorna None se inválida."""
+    if not mac:
+        return None
+    mac = mac.strip().lower().replace("-", ":")
+    mac = re.sub(r'[^0-9a-f:]', '', mac)
+    mac = re.sub(r':{2,}', ':', mac)
+    if not re.match(r'^([0-9a-f]{2}:){5}[0-9a-f]{2}$', mac):
+        return None
+    if mac in ("00:00:00:00:00:00", "ff:ff:ff:ff:ff:ff"):
+        return None
+    return mac
+
+
+def _merge_port_dicts(a: Dict[int, Any], b: Dict[int, Any]) -> Dict[int, Any]:
+    """Faz merge simples de dicts de portas:
+       - booleans -> OR lógico
+       - dicts (nmap) -> merge preferindo 'open'
+    """
+    if not a:
+        return copy.deepcopy(b) if b else {}
+    if not b:
+        return copy.deepcopy(a)
+    out = copy.deepcopy(a)
+    for port, val in b.items():
+        if port in out:
+            aval = out[port]
+            if isinstance(aval, bool) and isinstance(val, bool):
+                out[port] = aval or val
+            elif isinstance(aval, dict) and isinstance(val, dict):
+                merged = dict(aval)
+                for k, v in val.items():
+                    if k == "state":
+                        if merged.get("state") != "open":
+                            merged["state"] = v
+                    else:
+                        if v is not None:
+                            merged[k] = v
+                out[port] = merged
+            else:
+                out[port] = val or aval
+        else:
+            out[port] = copy.deepcopy(val)
+    return out
+
+
+def _collapse_devices_by_mac(all_devices: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Agrupa/colapsa entries por MAC quando disponível. Para entradas sem MAC usa ip como chave.
+    Mantém lista ips_seen em cada dispositivo final para histórico.
+    """
+    grouped: Dict[str, Dict[str, Any]] = {}
+
+    for ip, entry in all_devices.items():
+        mac_raw = entry.get("mac")
+        mac = _normalize_mac(mac_raw)
+        key = mac if mac else f"ip::{ip}"
+
+        if key not in grouped:
+            grouped[key] = copy.deepcopy(entry)
+            grouped[key]["ips_seen"] = [ip]
+            # garantir mac normalizado quando disponível
+            if mac:
+                grouped[key]["mac"] = mac
+        else:
+            target = grouped[key]
+            if ip not in target.get("ips_seen", []):
+                target.setdefault("ips_seen", []).append(ip)
+
+            # discovered_via
+            dv = set(target.get("discovered_via", []) or [])
+            dv.update(entry.get("discovered_via", []) or [])
+            target["discovered_via"] = list(dv)
+
+            # iface/subnet: preferir valores existentes
+            if not target.get("iface") and entry.get("iface"):
+                target["iface"] = entry.get("iface")
+            if not target.get("subnet") and entry.get("subnet"):
+                target["subnet"] = entry.get("subnet")
+
+            # alive_icmp: OR lógico
+            target["alive_icmp"] = bool(target.get("alive_icmp") or entry.get("alive_icmp"))
+
+            # portas -> merge
+            target["portas"] = _merge_port_dicts(target.get("portas", {}), entry.get("portas", {}))
+
+            # portas_nmap -> merge
+            target["portas_nmap"] = _merge_port_dicts(target.get("portas_nmap", {}), entry.get("portas_nmap", {}))
+
+            # portas_detalhadas -> tentar mesclar se dicts
+            if not target.get("portas_detalhadas") and entry.get("portas_detalhadas"):
+                target["portas_detalhadas"] = entry.get("portas_detalhadas")
+            elif isinstance(target.get("portas_detalhadas"), dict) and isinstance(entry.get("portas_detalhadas"), dict):
+                merged_det = dict(target["portas_detalhadas"])
+                merged_det.update(entry["portas_detalhadas"])
+                target["portas_detalhadas"] = merged_det
+
+            # mac: preencher se não existia
+            if not target.get("mac") and mac:
+                target["mac"] = mac
+
+    # escolher ip representativo e montar lista final
+    final_list: List[Dict[str, Any]] = []
+    for key, item in grouped.items():
+        seen_ips = item.get("ips_seen", [])
+        chosen_ip = None
+
+        # preferir IP com alive_icmp True
+        if seen_ips:
+            for cand in seen_ips:
+                orig = all_devices.get(cand)
+                if orig and orig.get("alive_icmp"):
+                    chosen_ip = cand
+                    break
+
+        # senão preferir IP com portas abertas
+        if not chosen_ip:
+            for cand in seen_ips:
+                orig = all_devices.get(cand, {})
+                portas = orig.get("portas") or {}
+                if any(portas.values()):
+                    chosen_ip = cand
+                    break
+
+        # senão usar primeiro
+        if not chosen_ip and seen_ips:
+            chosen_ip = seen_ips[0]
+
+        if chosen_ip and chosen_ip in all_devices:
+            src = all_devices[chosen_ip]
+            item["ip"] = chosen_ip
+            if src.get("iface"):
+                item["iface"] = src.get("iface")
+            if src.get("subnet"):
+                item["subnet"] = src.get("subnet")
+
+        # defensivo: garantir campo ip
+        if not item.get("ip") and seen_ips:
+            item["ip"] = seen_ips[0]
+
+        final_list.append(item)
+
+    # ordenar por ip
+    final_list = _safe_ip_sort(final_list)
+    return final_list
+
+
+# -----------------------
 # Orquestrador principal
 # -----------------------
 def run_full_discovery(
@@ -337,7 +490,7 @@ def run_full_discovery(
       6) TCP probes rápidos (paralelo)
       7) (opcional) nmap -p- por host para descobrir todas portas (paralelo)
       8) (opcional) usar escanear_portas para detalhes
-      9) salvar JSON
+      9) salvar JSON (agrupar por MAC)
     """
     if ports is None:
         ports = COMMON_PLC_PORTS
@@ -479,7 +632,6 @@ def run_full_discovery(
             with ThreadPoolExecutor(max_workers=parallel_workers) as ex:
                 futures = {}
                 for ip, entry in all_devices.items():
-                    # define quando chamar: se detectou portas abertas via tcp_probe ou nmap
                     call = False
                     if entry.get("portas") and any(entry["portas"].values()):
                         call = True
@@ -497,21 +649,25 @@ def run_full_discovery(
         except Exception:
             pass
 
-    # resultado final e salvamento
-    devices_final = list(all_devices.values())
-    devices_final = _safe_ip_sort(devices_final)
+    # resultado final: colapsar por mac e salvar
+    devices_final = _collapse_devices_by_mac(all_devices)
 
     elapsed = time() - start_ts
     logger.info({"evento": "Descoberta completa", "total": len(devices_final), "tempo_segundos": elapsed})
 
+    # gravação atômica do arquivo DISCOVERY_FILE (usa temp + replace)
     try:
-        with open(DISCOVERY_FILE, "w", encoding="utf-8") as f:
-            json.dump(devices_final, f, indent=2, ensure_ascii=False)
+        dirpath = os.path.dirname(DISCOVERY_FILE) or "."
+        os.makedirs(dirpath, exist_ok=True)
+        with tempfile.NamedTemporaryFile("w", delete=False, dir=dirpath, encoding="utf-8") as tf:
+            json.dump(devices_final, tf, indent=2, ensure_ascii=False)
+            tmpname = tf.name
+        os.replace(tmpname, DISCOVERY_FILE)
         logger.info({"evento": "Resultados salvos", "arquivo": DISCOVERY_FILE})
     except Exception as e:
         logger.error({"evento": "Falha ao salvar resultados", "detalhes": str(e)})
 
-    # salvar por interface opcional
+    # salvar por interface opcional (também atômico)
     if save_per_interface:
         by_iface: Dict[str, List[Dict[str, Any]]] = {}
         for d in devices_final:
@@ -521,8 +677,12 @@ def run_full_discovery(
             safe_base = DISCOVERY_FILE.rstrip(".json")
             fname = f"{safe_base}_{iface}.json"
             try:
-                with open(fname, "w", encoding="utf-8") as f:
-                    json.dump(lst, f, indent=2, ensure_ascii=False)
+                dirpath = os.path.dirname(fname) or "."
+                os.makedirs(dirpath, exist_ok=True)
+                with tempfile.NamedTemporaryFile("w", delete=False, dir=dirpath, encoding="utf-8") as tf:
+                    json.dump(lst, tf, indent=2, ensure_ascii=False)
+                    tmpname = tf.name
+                os.replace(tmpname, fname)
                 logger.info({"evento": "Salvo por interface", "iface": iface, "arquivo": fname})
             except Exception as e:
                 logger.warning({"evento": "Erro salvando por interface", "iface": iface, "detalhes": str(e)})
@@ -548,7 +708,7 @@ if __name__ == "__main__":
     logger.info({"evento": "--- SCRIPT DE DESCOBERTA INICIADO ---"})
     devices = run_full_discovery(save_per_interface=True, use_nmap=USE_NMAP_FOR_FULL_PORT_SCAN)
     if devices:
-        logger.info({"evento": "Execução finalizada com sucesso", "total": len(devices)})
+        logger.info({"evento": "Execução finalizada com sucesso", "total": len(devices)}))
     else:
         logger.info({"evento": "Nenhum dispositivo encontrado ou falha na execução."})
     logger.info({"evento": "--- FIM ---"})
