@@ -76,6 +76,9 @@ def create_app():
 
         from src.views.routes.clps_routes import clps_bp
         app.register_blueprint(clps_bp)
+
+        from src.views.routes.coleta_routes import coleta
+        app.register_blueprint(coleta)
         
 
     return app

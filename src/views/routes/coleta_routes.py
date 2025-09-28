@@ -117,7 +117,7 @@ def _start_discovery_thread() -> bool:
 
 @coleta.route("/", methods=["GET"])
 @login_required
-@role_required("ADMIN")
+@role_required("admin")
 def index():
     return render_template("coleta_ips.html")
 

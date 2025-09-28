@@ -1,0 +1,159 @@
+<!-- templates/coleta_ips.html -->
+{% extends "base.html" %}
+
+
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='styles/coleta_ips.css') }}">
+{% endblock %}
+
+
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4 text-center">📡 Descoberta de CLPs na Rede</h2>
+
+    <!-- Botão de controle -->
+    <div class="d-flex justify-content-center mb-3">
+        <button id="btnStart" class="btn btn-primary px-4 py-2">
+            🚀 Iniciar Descoberta
+        </button>
+    </div>
+
+    <!-- Status -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">Status da Descoberta</div>
+        <div class="card-body">
+            <p><strong>Executando:</strong> <span id="status-running">-</span></p>
+            <p><strong>Iniciado em:</strong> <span id="status-started">-</span></p>
+            <p><strong>Finalizado em:</strong> <span id="status-finished">-</span></p>
+            <p><strong>Última atualização:</strong> <span id="status-mtime">-</span></p>
+            <p><strong>Total de dispositivos:</strong> <span id="status-count">-</span></p>
+        </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">Logs</div>
+        <div class="card-body">
+            <div id="logs" class="bg-dark text-white p-3 rounded" 
+                style="max-height: 250px; overflow-y: auto; font-family: monospace;">
+            <div class="log-terminal">Carregando logs...</div>
+        </div>
+
+        </div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="card">
+        <div class="card-header bg-info text-white">Resultados</div>
+        <div class="card-body">
+            <table class="table table-striped table-hover" id="results-table">
+                <thead>
+                    <tr>
+                        <th>IP</th>
+                        <th>MAC</th>
+                        <th>Sub-rede</th>
+                        <th>Portas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="4" class="text-center">Nenhum resultado ainda</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+async function startDiscovery() {
+    const res = await fetch("{{ url_for('coleta.coleta_ips_start') }}", {method: "POST"});
+    if (res.ok) {
+        alert("Descoberta iniciada!");
+    } else {
+        alert("Já existe uma execução em andamento.");
+    }
+}
+
+async function updateStatus() {
+    const res = await fetch("{{ url_for('coleta.coleta_ips_status') }}");
+    if (!res.ok) return;
+    const data = await res.json();
+    document.getElementById("status-running").innerText = data.running ? "✅ Sim" : "❌ Não";
+    document.getElementById("status-started").innerText = data.started_at || "-";
+    document.getElementById("status-finished").innerText = data.last_finished_at || "-";
+    document.getElementById("status-mtime").innerText = data.discovery_file_mtime || "-";
+    document.getElementById("status-count").innerText = data.result_count ?? "-";
+}
+
+async function updateLogs() {
+    const res = await fetch("{{ url_for('coleta.coleta_ips_logs') }}");
+    if (!res.ok) return;
+    const text = await res.text();
+
+    const logBox = document.getElementById("logs");
+
+    // quebra em linhas e aplica classes
+    const lines = text.split("\n").map(line => {
+        if (line.includes("ERROR")) {
+            return `<div class="log-terminal log-error">${line}</div>`;
+        } else if (line.includes("WARN")) {
+            return `<div class="log-terminal log-warning">${line}</div>`;
+        } else if (line.includes("INFO")) {
+            return `<div class="log-terminal log-info">${line}</div>`;
+        } else if (line.includes("DEBUG")) {
+            return `<div class="log-terminal log-debug">${line}</div>`;
+        } else if (line.includes("OK") || line.includes("SUCCESS")) {
+            return `<div class="log-terminal log-success">${line}</div>`;
+        }
+        return `<div class="log-terminal">${line}</div>`;
+    }).join("");
+
+    logBox.innerHTML = lines || "<div class='log-terminal'>Nenhum log ainda</div>";
+
+    // mantém no final, igual terminal real
+    logBox.scrollTop = logBox.scrollHeight;
+}
+
+
+async function updateResults() {
+    const res = await fetch("{{ url_for('coleta.coleta_ips_results') }}");
+    if (!res.ok) return;
+    const data = await res.json();
+    const tbody = document.querySelector("#results-table tbody");
+    tbody.innerHTML = "";
+    if (Array.isArray(data) && data.length > 0) {
+        data.forEach(dev => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${dev.ip}</td>
+                <td>${dev.mac || "-"}</td>
+                <td>${dev.subnet || "-"}</td>
+                <td>${
+    dev.portas 
+        ? Object.entries(dev.portas)
+            .map(([porta, status]) => `${porta}: ${status ? "✅" : "❌"}`)
+            .join(", ")
+        : "-"
+}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center">Nenhum resultado</td></tr>`;
+    }
+}
+
+document.getElementById("btnStart").addEventListener("click", startDiscovery);
+
+// Atualiza status/logs/resultados a cada 3 segundos
+setInterval(() => {
+    updateStatus();
+    updateLogs();
+    updateResults();
+}, 3000);
+
+updateStatus();
+updateLogs();
+updateResults();
+</script>
+{% endblock %}
