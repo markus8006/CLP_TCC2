@@ -10,6 +10,7 @@ from pymodbus.datastore import (
     ModbusSequentialDataBlock
 )
 from pymodbus.pdu.device import ModbusDeviceIdentification
+from pymodbus.client import ModbusTcpClient
 
 # --- Logger ---
 logger = setup_logger()
@@ -42,6 +43,12 @@ if __name__ == "__main__":
 
     # Agora, inicie o polling service
     polling_service.start_all_from_controller()
+    c = ModbusTcpClient('127.0.0.1', port=5020)
+    c.connect()
+    print("signature:", c.read_holding_registers.__doc__)
+    resp = c.read_holding_registers(0, count=1, device_id=1)  # ou ajuste conforme assinatura
+    print("resp:", resp)
+    c.close()
 
     # Rodar Flask
     logger.info("Servidor Flask rodando em 0.0.0.0:5000")

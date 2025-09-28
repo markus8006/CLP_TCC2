@@ -87,11 +87,11 @@ class ModbusAdapter(BaseAdapter):
     # -------------------------------
     def read_tag(self, clp: Dict[str, Any], address: int, count: int = 1) -> Optional[List[int]]:
         """
-        Lê registradores Modbus (holding registers).
+        Lê registradores Modbus (holding registers) de forma compatível.
         Retorna lista de inteiros ou None em caso de falha.
         """
         ip = clp.get("ip")
-        if not isinstance(ip, str) or not ip:
+        if not ip:
             logger.error({"evento": "read_tag: ip inválido ou ausente", "clp": clp})
             return None
 
@@ -100,38 +100,34 @@ class ModbusAdapter(BaseAdapter):
             logger.warning({"evento": "read_tag: cliente Modbus não conectado", "ip": ip})
             return None
 
-        client_any = cast(Any, client)
+        slave_id = clp.get("unit", 1)
+        print(slave_id, type(slave_id))
 
-        # Tentativas adaptativas de chamada
         try:
-            response = client_any.read_holding_registers(address, count)  # type: ignore[call-arg]
-        except TypeError:
+            # --- CORREÇÃO FINAL APLICADA ---
+            # Tenta a chamada mais simples primeiro, que não especifica o 'slave'/'unit'
+            # se o servidor for 'single'. Se falhar, tenta a chamada antiga com 'unit'.
             try:
-                response = client_any.read_holding_registers(address=address, count=count, unit=clp.get("unit", 1))
-            except Exception as e:
-                logger.error({"evento": "read_tag: erro no fallback", "ip": ip, "detalhes": str(e)})
+                # Tentativa 1: Chamada mais comum e moderna para servidores single-device
+                response = client.read_holding_registers(address=address, count=count)
+            except TypeError:
+                # Tentativa 2 (Fallback): Chamada para versões mais antigas ou servidores multi-device
+                response = client.read_holding_registers(address, count=count, device_id=slave_id)
+
+            if not response or response.isError():
+                logger.warning({
+                    "evento": "read_tag: resposta de erro do Modbus",
+                    "ip": ip, "address": address, "response": str(response)
+                })
                 return None
+            
+            return response.registers
+
         except Exception as e:
-            logger.error({"evento": "read_tag: erro inesperado", "ip": ip, "detalhes": str(e)})
-            return None
-
-        if not response:
-            logger.warning({"evento": "read_tag: resposta vazia", "ip": ip, "address": address})
-            return None
-
-        if hasattr(response, "isError") and response.isError():
-            logger.warning({"evento": "read_tag: resposta de erro", "ip": ip, "address": address})
-            return None
-
-        registers = getattr(response, "registers", None)
-        if registers is None:
-            logger.warning({"evento": "read_tag: resposta sem 'registers'", "ip": ip, "address": address})
-            return None
-
-        try:
-            return list(registers)
-        except Exception as e:
-            logger.error({"evento": "read_tag: falha ao converter registers", "ip": ip, "detalhes": str(e)})
+            logger.error({
+                "evento": "read_tag: exceção durante a leitura",
+                "ip": ip, "detalhes": str(e)
+            })
             return None
 
     # -------------------------------
