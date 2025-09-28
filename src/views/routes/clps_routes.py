@@ -89,18 +89,26 @@ adapter = ModbusAdapter()
 @login_required
 @role_required("admin")
 def poll_start(ip):
-    clp = ClpController.obter_por_ip(ip)
-    if not clp:
+    clp_original = ClpController.obter_por_ip(ip)
+    if not clp_original:
         return jsonify(success=False, message="CLP não encontrado"), 404
+
     data = request.get_json() or {}
     port = data.get("port")
-    # opcional: set port in clp antes de iniciar
+
+    # Create a copy to modify, so we can pass the original and new versions
+    clp_modificado = clp_original.copy()
+
     if port:
-        clp.setdefault("portas", [])
-        if port not in clp["portas"]:
-            clp["portas"].insert(0, port)
-    ok = polling_service.start_poll_for(clp)
+        clp_modificado.setdefault("portas", [])
+        if port not in clp_modificado["portas"]:
+            clp_modificado["portas"].insert(0, port)
+            # --- FIX: Save the changes back to the JSON file ---
+            ClpController.editar_clp(clp_original, clp_modificado)
+
+    ok = polling_service.start_poll_for(clp_modificado)
     return jsonify(success=ok)
+
 
 @clps_bp.route("/<ip>/poll/stop", methods=["POST"])
 @login_required
@@ -109,6 +117,7 @@ def poll_stop(ip):
     polling_service.stop_poll_for(ip)
     return jsonify(success=True)
 
+
 @clps_bp.route("/<ip>/read", methods=["POST"])
 @login_required
 @role_required("admin")
@@ -116,19 +125,21 @@ def read_register(ip):
     body = request.get_json() or {}
     address = int(body.get("address", 0))
     count = int(body.get("count", 1))
+
     clp = ClpController.obter_por_ip(ip)
     if not clp:
         return jsonify(success=False, message="CLP não encontrado"), 404
-    # tenta conectar temporariamente e ler
+
     if not adapter.connect(clp):
         return jsonify(success=False, message="Não conectou ao CLP"), 500
+
     vals = adapter.read_tag(clp, address, count)
     return jsonify(success=True, value=vals)
+
 
 @clps_bp.route("/<ip>/values", methods=["GET"])
 @login_required
 def clp_values(ip):
-    # tenta retornar dados do ClpController (registers_values + logs) ou do polling_service cache
     clp = ClpController.obter_por_ip(ip)
     data = {}
     if clp:
@@ -136,12 +147,12 @@ def clp_values(ip):
         data["logs"] = clp.get("logs", [])
         data["status"] = clp.get("status", "Offline")
     else:
-        # fallback: cache do polling_service
         cache = polling_service.get_cache()
         data["registers_values"] = cache.get(ip, {})
         data["logs"] = []
         data["status"] = "Offline"
     return jsonify(data)
+
 
 @clps_bp.route("/<ip>/status", methods=["GET"])
 @login_required
@@ -149,6 +160,7 @@ def clp_status(ip):
     clp = ClpController.obter_por_ip(ip)
     status = clp.get("status", "Offline") if clp else "Offline"
     return jsonify(status=status)
+
 
 @clps_bp.route("/<ip>/tags/assign", methods=["POST"])
 @login_required
@@ -158,13 +170,19 @@ def assign_tag(ip):
     tag = data.get("tag")
     if not tag:
         return jsonify(success=False, message="Tag vazia"), 400
-    clp = ClpController.obter_por_ip(ip)
-    if not clp:
+
+    clp_original = ClpController.obter_por_ip(ip)
+    if not clp_original:
         return jsonify(success=False, message="CLP não encontrado"), 404
-    clp.setdefault("tags", [])
-    if tag not in clp["tags"]:
-        clp["tags"].append(tag)
-    ClpController.editar_clp(ClpController.obter_por_ip(ip), clp)
+
+    # --- FIX: Create a copy and modify it, then pass both to the controller ---
+    clp_modificado = clp_original.copy()
+    tags = set(clp_modificado.get("tags", []))
+    tags.add(tag)
+    clp_modificado["tags"] = sorted(list(tags))
+
+    # Now, save the updated object
+    ClpController.editar_clp(clp_original, clp_modificado)
     return jsonify(success=True)
 
 @clps_bp.route("/<ip>/tags/remove", methods=["POST"])

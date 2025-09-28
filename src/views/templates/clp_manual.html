@@ -4,78 +4,80 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h2>Cadastrar / Editar CLP Manual</h2>
+    <h2>Cadastrar / Editar CLP Manual</h2>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, msg in messages %}
-        <div class="alert alert-{{ 'success' if category=='success' else ('danger' if category=='danger' else 'info') }}">{{ msg }}</div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-
-  <form method="POST" class="card p-3 mb-4">
-    <div class="row g-3">
-      <div class="col-md-4">
-        <label class="form-label">Nome</label>
-        <input name="nome" class="form-control" required placeholder="Nome do CLP (ex: CLP-ORDEM)">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">IP</label>
-        <input name="ip" class="form-control" required placeholder="192.168.0.50">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">MAC (opcional)</label>
-        <input name="mac" class="form-control" placeholder="AA:BB:CC:DD:EE:FF">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Interface (opcional)</label>
-        <input name="iface" class="form-control" placeholder="eth0">
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label">Sub-rede (opcional)</label>
-        <input name="subnet" class="form-control" placeholder="192.168.0.0/24">
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label">Portas (vírgula separadas)</label>
-        <input name="portas" class="form-control" placeholder="Ex: 502,102,4840">
-        <div class="form-text">Deixe vazio para nenhuma porta ou informe portas separadas por vírgula.</div>
-      </div>
-    </div>
-
-    <div class="mt-3">
-      <button class="btn btn-primary">Salvar CLP Manual</button>
-      <a href="{{ url_for('coleta.index') }}" class="btn btn-secondary">Voltar</a>
-    </div>
-  </form>
-
-  <h4>CLPs já cadastrados (arquivo DISCOVERY)</h4>
-  <table class="table table-striped table-hover">
-    <thead>
-      <tr><th>Nome</th><th>IP</th><th>MAC</th><th>Sub-rede</th><th>Portas</th><th>Manual</th></tr>
-    </thead>
-    <tbody>
-      {% for d in clps %}
-      <tr>
-        <td>{{ d.get('nome') or '-' }}</td>
-        <td>{{ d.get('ip') }}</td>
-        <td>{{ d.get('mac') or '-' }}</td>
-        <td>{{ d.get('subnet') or '-' }}</td>
-        <td>
-          {% if d.get('portas') %}
-            {% for p, s in d.get('portas').items() %}
-              {{ p }}: {{ '✅' if s else '❌' }}<br>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, msg in messages %}
+                <div class="alert alert-{{ 'success' if category=='success' else ('danger' if category=='danger' else 'info') }}">{{ msg }}</div>
             {% endfor %}
-          {% else %}
-            -
-          {% endif %}
-        </td>
-        <td>{{ '✅' if d.get('manual') else '—' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="card p-3 mb-4">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Nome</label>
+                <input name="nome" class="form-control" required placeholder="Nome do CLP (ex: CLP-ORDEM)">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">IP</label>
+                <input name="ip" class="form-control" required placeholder="192.168.0.50">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">MAC (opcional)</label>
+                <input name="mac" class="form-control" placeholder="AA:BB:CC:DD:EE:FF">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Interface (opcional)</label>
+                <input name="iface" class="form-control" placeholder="eth0">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Sub-rede (opcional)</label>
+                <input name="subnet" class="form-control" placeholder="192.168.0.0/24">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Portas (separadas por vírgula)</label>
+                <input name="portas" class="form-control" placeholder="Ex: 502, 102, 4840">
+                <div class="form-text">Deixe vazio para nenhuma porta ou informe portas separadas por vírgula.</div>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button class="btn btn-primary">Salvar CLP Manual</button>
+            <a href="{{ url_for('coleta.index') }}" class="btn btn-secondary">Voltar</a>
+        </div>
+    </form>
+
+    <h4>CLPs Salvos</h4>
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr><th>Nome</th><th>IP</th><th>MAC</th><th>Sub-rede</th><th>Portas</th><th>Manual</th></tr>
+        </thead>
+        <tbody>
+            {% for d in clps %}
+            <tr>
+                <td>{{ d.get('nome') or '-' }}</td>
+                <td>{{ d.get('ip') }}</td>
+                <td>{{ d.get('mac') or '-' }}</td>
+                <td>{{ d.get('subnet') or '-' }}</td>
+                <td>
+                    {# --- CORREÇÃO APLICADA AQUI --- #}
+                    {# Itera sobre a lista de portas e exibe cada uma. #}
+                    {% if d.get('portas') %}
+                        {% for port in d.get('portas', []) %}
+                            <span class="badge bg-info text-dark">{{ port }}</span>
+                        {% endfor %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ '✅' if d.get('manual') else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}

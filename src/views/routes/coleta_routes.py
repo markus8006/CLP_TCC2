@@ -7,10 +7,22 @@ from datetime import datetime
 from typing import Optional, List, Dict
 from flask import Blueprint, current_app, jsonify, Response, render_template, request, redirect, url_for, flash
 from flask_login import login_required
-from src.utils.decorators.decorators import role_required  
+from src.utils.decorators.decorators import role_required 
+
+from src.utils.root.paths import CLPS_FILE
 
 from src.utils.network.discovery import discovery_background_once, logger as discovery_logger
 from src.utils.root.paths import DISCOVERY_FILE
+
+from src.services.device_service import criar_dispositivo, atualizar_clp, buscar_por_ip
+from datetime import datetime
+
+# src/services/device_service.py
+from src.repositories.json_repo import carregar_arquivo, salvar_arquivo
+# ... resto do código
+
+# src/services/device_service.py
+
 
 import ipaddress
 
@@ -209,31 +221,36 @@ def _save_discovery_file(data: List[Dict]) -> bool:
         return False
 
 
+
+
+
+# ... (outras importações do seu arquivo de rotas)
+
 @coleta.route("/manual", methods=["GET", "POST"])
 @login_required
 @role_required("admin")
 def coleta_manual():
     """
     Página para adicionar/editar CLPs manualmente.
-    GET: renderiza formulário
-    POST: valida e salva (upsert por IP) no DISCOVERY_FILE com campo 'manual': True
+    GET: renderiza formulário.
+    POST: valida e salva o dispositivo diretamente como um CLP no formato padrão.
     """
     if request.method == "POST":
-        nome = request.form.get("nome", "").strip()
         ip = request.form.get("ip", "").strip()
-        iface = request.form.get("iface", "").strip() or None
-        subnet = request.form.get("subnet", "").strip() or None
-        portas_raw = request.form.get("portas", "").strip()  # ex: "502,102,4840"
-        # validações básicas
-        if not nome:
-            flash("Nome é obrigatório.", "danger")
+        nome = request.form.get("nome", "").strip()
+
+        # --- Validações ---
+        if not ip or not nome:
+            flash("IP e Nome são obrigatórios.", "danger")
             return redirect(url_for("coleta.coleta_manual"))
         try:
             ipaddress.ip_address(ip)
-        except Exception:
-            flash("IP inválido.", "danger")
+        except ValueError:
+            flash("Endereço IP inválido.", "danger")
             return redirect(url_for("coleta.coleta_manual"))
 
+        # --- Coleta de dados do formulário ---
+        portas_raw = request.form.get("portas", "").strip()
         portas_list = []
         if portas_raw:
             for p in portas_raw.split(","):
@@ -241,49 +258,43 @@ def coleta_manual():
                     pnum = int(p.strip())
                     if 0 <= pnum <= 65535:
                         portas_list.append(pnum)
-                except Exception:
+                except ValueError:
                     continue
+        
+        # --- Verifica se o CLP já existe para decidir entre criar ou atualizar ---
+        clp_existente = buscar_por_ip(ip)
 
-        # montar entry
-        portas_dict = {str(p): False for p in portas_list} if portas_list else {}
-        entry = {
+        # --- Monta o dicionário com os dados para o serviço ---
+        dados_clp = {
             "ip": ip,
-            "mac": request.form.get("mac", "").strip() or None,
-            "subnet": subnet,
-            "iface": iface,
-            "discovered_via": ["manual"],
-            "manual": True,
-            "alive_icmp": False,
-            "portas": portas_dict,
             "nome": nome,
-            "created_at": datetime.utcnow().isoformat()
+            "mac": request.form.get("mac", "").strip(),
+            "subnet": request.form.get("subnet", "").strip(),
+            "portas": portas_list,
+            # Força os campos para garantir o padrão CLP
+            "tipo": "CLP",
+            "grupo": "Sem Grupo", # Ou pegue do formulário se houver um campo
+            "protocolo": "modbus",
+            "manual": True, # Flag para indicar que foi adicionado manualmente
         }
 
-        # upsert no DISCOVERY_FILE com lock
-        with _file_lock:
-            data = _load_discovery_file()
-            # procura por IP existente
-            replaced = False
-            for i, d in enumerate(data):
-                if d.get("ip") == ip:
-                    # atualiza campos (mantendo históricos se existirem)
-                    d.update(entry)
-                    d["discovered_via"] = list(dict.fromkeys(d.get("discovered_via", []) + ["manual"]))
-                    d["manual"] = True
-                    data[i] = d
-                    replaced = True
-                    break
-            if not replaced:
-                data.append(entry)
+        try:
+            if clp_existente:
+                # Se existe, atualiza os dados
+                # A função 'atualizar_clp' faz um merge inteligente dos dados
+                atualizar_clp(clp_existente, dados_clp)
+                flash(f"CLP {ip} foi atualizado com sucesso!", "success")
+            else:
+                # Se não existe, cria um novo
+                # A função 'criar_dispositivo' usa o modelo Device para gerar o formato completo
+                criar_dispositivo(dados_clp, Manual=True)
+                flash(f"CLP {ip} foi criado com sucesso!", "success")
 
-            ok = _save_discovery_file(data)
+        except Exception as e:
+            flash(f"Ocorreu um erro ao salvar o CLP: {e}", "danger")
 
-        if ok:
-            flash(f"CLP {ip} salvo com sucesso.", "success")
-        else:
-            flash("Erro ao salvar o CLP.", "danger")
         return redirect(url_for("coleta.coleta_manual"))
 
-    # GET -> renderiza template passando lista atual
-    existing = _load_discovery_file()
-    return render_template("clp_manual.html", clps=existing)
+    # --- Lógica para o método GET (pode ser ajustada para carregar de clps.json) ---
+    clps_salvos = carregar_arquivo(CLPS_FILE) or []
+    return render_template("clp_manual.html", clps=clps_salvos)

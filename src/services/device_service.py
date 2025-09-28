@@ -64,7 +64,7 @@ def _to_int_list(iterable: Optional[Iterable[Any]]) -> List[int]:
     return sorted(list(set(out)))
 
 
-def criar_dispositivo(dados: Dict[str, Any], grupo: str = "Sem Grupo") -> Dict[str, Any]:
+def criar_dispositivo(dados: Dict[str, Any], grupo: str = "Sem Grupo", Manual=False) -> Dict[str, Any]:
     """
     Cria um dispositivo (ou atualiza portas se já existir). Não altera outras listas/estruturas externas.
     """
@@ -125,6 +125,8 @@ def criar_dispositivo(dados: Dict[str, Any], grupo: str = "Sem Grupo") -> Dict[s
         tipo = "Smartphone / Tablet / Web Device"
     elif 554 in portas or 8554 in portas:
         tipo = "Câmera IP"
+    elif Manual:
+        tipo = "CLP"
 
     nome = f"{tipo}_{ip}" if tipo != "Desconhecido" else f"Desconhecido_{ip}"
 
