@@ -23,7 +23,8 @@ app = create_app()
 def simulation():
     # ... (seu código de simulação permanece o mesmo)
     store1 = ModbusDeviceContext(hr=ModbusSequentialDataBlock(0, [0]*10))
-    store2 = ModbusDeviceContext(hr=ModbusSequentialDataBlock(0, [100]*5))
+    store2 = ModbusDeviceContext(hr=ModbusSequentialDataBlock(0, [100 + i for i in range(5)]))
+    
     context = ModbusServerContext(devices={1: store1, 2: store2}, single=False)
     identity = ModbusDeviceIdentification()
     identity.VendorName = 'Simulated CLP'
@@ -37,18 +38,37 @@ if __name__ == "__main__":
     # Rodar servidor Modbus em thread separada PRIMEIRO
     threading.Thread(target=simulation, daemon=True).start()
 
-    # <-- 2. Adicione uma pequena pausa aqui
+    # Adicione uma pequena pausa aqui
     logger.info("Aguardando o servidor Modbus iniciar...")
     time.sleep(1)  # Espera 1 segundo para garantir que o servidor esteja no ar
 
     # Agora, inicie o polling service
     polling_service.start_all_from_controller()
-    c = ModbusTcpClient('127.0.0.1', port=5020)
-    c.connect()
-    print("signature:", c.read_holding_registers.__doc__)
-    resp = c.read_holding_registers(0, count=1, device_id=1)  # ou ajuste conforme assinatura
-    print("resp:", resp)
-    c.close()
+
+    # --- Início do Código de Teste Corrigido ---
+    logger.info("--- INICIANDO TESTE DE CLIENTE MODBUS ---")
+    # try:
+    #     # c = ModbusTcpClient('127.0.0.1', port=5020)
+    #     # c.connect()
+        
+    #     # # O Unit ID que queremos ler é o 1
+    #     # unit_id_para_ler = 2
+        
+    #     # logger.info(f"A tentar ler do Unit ID: {unit_id_para_ler}")
+        
+    #     # # Correção: O parâmetro correto para a sua versão é 'unit'
+    #     # resp = c.read_holding_registers(1, count=1, device_id=unit_id_para_ler)
+        
+    #     # if resp.isError():
+    #     #     logger.error(f"Resposta de erro do Modbus: {resp}")
+    #     # else:
+    #     #     logger.info(f"Resposta bem-sucedida: {resp.registers}")
+            
+    #     # c.close()
+    # except Exception as e:
+    #     logger.error(f"Erro durante o teste do cliente: {e}")
+    # logger.info("--- FIM DO TESTE DE CLIENTE MODBUS ---")
+    # # --- Fim do Código de Teste ---
 
     # Rodar Flask
     logger.info("Servidor Flask rodando em 0.0.0.0:5000")

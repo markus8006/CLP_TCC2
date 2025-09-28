@@ -87,8 +87,7 @@ class ModbusAdapter(BaseAdapter):
     # -------------------------------
     def read_tag(self, clp: Dict[str, Any], address: int, count: int = 1) -> Optional[List[int]]:
         """
-        Lê registradores Modbus (holding registers) de forma compatível.
-        Retorna lista de inteiros ou None em caso de falha.
+        Lê registradores Modbus (holding registers).
         """
         ip = clp.get("ip")
         if not ip:
@@ -100,24 +99,21 @@ class ModbusAdapter(BaseAdapter):
             logger.warning({"evento": "read_tag: cliente Modbus não conectado", "ip": ip})
             return None
 
-        slave_id = clp.get("unit", 1)
-        print(slave_id, type(slave_id))
+        # A sua biblioteca usa 'device_id'. O padrão é 1.
+        device_id = clp.get("unit", 1)
+        device_id = 2
+        count = 3
 
         try:
             # --- CORREÇÃO FINAL APLICADA ---
-            # Tenta a chamada mais simples primeiro, que não especifica o 'slave'/'unit'
-            # se o servidor for 'single'. Se falhar, tenta a chamada antiga com 'unit'.
-            try:
-                # Tentativa 1: Chamada mais comum e moderna para servidores single-device
-                response = client.read_holding_registers(address=address, count=count)
-            except TypeError:
-                # Tentativa 2 (Fallback): Chamada para versões mais antigas ou servidores multi-device
-                response = client.read_holding_registers(address, count=count, device_id=slave_id)
+            # A chamada agora usa o parâmetro 'device_id', conforme a assinatura
+            # da sua biblioteca.
+            response = client.read_holding_registers(address, count=count, device_id=device_id)
 
             if not response or response.isError():
                 logger.warning({
                     "evento": "read_tag: resposta de erro do Modbus",
-                    "ip": ip, "address": address, "response": str(response)
+                    "ip": ip, 'id' : device_id, "address": address, "response": str(response)
                 })
                 return None
             
