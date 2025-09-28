@@ -1,7 +1,11 @@
 # src/utils/network/discovery.py
+import os
 import ipaddress
 import json
 import socket
+import shutil
+import subprocess
+import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional, Any, Set, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import time
@@ -19,23 +23,29 @@ from scapy.all import (
     get_if_addr,
 )
 
-from src.utils.network.portas import escanear_portas  # seu scanner atual, usado como fallback/extra
+# imports do seu projeto
+try:
+    from src.utils.network.portas import escanear_portas  # opcional, fallback
+except Exception:
+    escanear_portas = None
+
 from src.utils.permissao.permissao import verificar_permissoes
 from src.utils.log.log import setup_logger
 from src.utils.root.paths import DISCOVERY_FILE
 
 logger = setup_logger()
 
-# portas típicas de PLC / serviços industriais
+# -----------------------
+# CONFIGURAÇÕES
+# -----------------------
 COMMON_PLC_PORTS: List[int] = [502, 102, 44818, 1911, 161, 4840]  # Modbus, S7, EtherNet/IP, Rockwell, SNMP, OPC-UA
-
-# parâmetros configuráveis
 DEFAULT_PASSIVE_TIMEOUT = 30
 DEFAULT_ARP_TIMEOUT = 2
 DEFAULT_ICMP_TIMEOUT = 1
 DEFAULT_TCP_TIMEOUT = 0.5
-MAX_WORKERS = 16  # threads
-
+MAX_WORKERS = 12
+USE_NMAP_FOR_FULL_PORT_SCAN = True  # controlar se nmap será usado
+NMAP_TIMEOUT_PER_HOST = 300  # segundos, ajustar conforme necessário
 
 
 # -----------------------
@@ -52,14 +62,13 @@ def _read_arp_cache() -> Dict[str, str]:
     """Tenta ler o ARP cache do sistema como complemento (ip -> mac)."""
     arp_map: Dict[str, str] = {}
     try:
-        # Linux: parse `ip neigh` output
+        # tenta ip neigh (Linux)
         with os.popen("ip neigh") as p:
             out = p.read().strip().splitlines()
         for line in out:
             parts = line.split()
             if len(parts) >= 5:
                 ip = parts[0]
-                # mac aparece depois de 'lladdr' ou na 4ª posição
                 if "lladdr" in parts:
                     idx = parts.index("lladdr") + 1
                     mac = parts[idx] if idx < len(parts) else None
@@ -68,7 +77,6 @@ def _read_arp_cache() -> Dict[str, str]:
                 if mac:
                     arp_map[ip] = mac
     except Exception:
-        # fallback: tentar `arp -n`
         try:
             with os.popen("arp -n") as p:
                 out = p.read().strip().splitlines()
@@ -84,12 +92,94 @@ def _read_arp_cache() -> Dict[str, str]:
 
 
 # -----------------------
+# NMAP wrapper
+# -----------------------
+def _nmap_available() -> bool:
+    return shutil.which("nmap") is not None
+
+
+def nmap_scan_host(
+    ip: str,
+    all_ports: bool = True,
+    extra_args: Optional[List[str]] = None,
+    use_syn_scan_if_root: bool = True,
+    timeout: int = NMAP_TIMEOUT_PER_HOST,
+) -> Dict[int, Dict[str, Any]]:
+    """
+    Executa nmap para o host `ip` e retorna um dict {porta: {state, proto, service, product, version}}.
+    Usa -oX - (XML para stdout) e faz parse.
+    """
+    result: Dict[int, Dict[str, Any]] = {}
+
+    if not _nmap_available():
+        logger.warning({"evento": "nmap não encontrado no sistema; pulando nmap_scan_host", "ip": ip})
+        return result
+
+    cmd: List[str] = ["nmap", "-oX", "-"]
+
+    # scan type
+    if use_syn_scan_if_root and os.geteuid() == 0:
+        cmd += ["-sS"]
+    else:
+        cmd += ["-sT"]
+
+    # version detection and speed
+    cmd += ["-sV", "--version-intensity", "0", "-T4"]
+
+    # all ports or extra_args
+    if all_ports:
+        cmd += ["-p-"]
+    if extra_args:
+        cmd += extra_args
+
+    cmd.append(ip)
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        stdout = proc.stdout
+        if not stdout:
+            return result
+
+        root = ET.fromstring(stdout)
+        for host in root.findall("host"):
+            ports = host.find("ports")
+            if ports is None:
+                continue
+            for p in ports.findall("port"):
+                try:
+                    portid = int(p.attrib.get("portid", "-1"))
+                    proto = p.attrib.get("protocol")
+                    state_node = p.find("state")
+                    state = state_node.attrib.get("state") if state_node is not None else "unknown"
+                    service_node = p.find("service")
+                    service = service_node.attrib.get("name") if service_node is not None else None
+                    product = service_node.attrib.get("product") if service_node is not None else None
+                    version = service_node.attrib.get("version") if service_node is not None else None
+
+                    result[portid] = {
+                        "proto": proto,
+                        "state": state,
+                        "service": service,
+                        "product": product,
+                        "version": version,
+                    }
+                except Exception:
+                    continue
+    except subprocess.TimeoutExpired:
+        logger.warning({"evento": "nmap timeout", "ip": ip})
+    except Exception as e:
+        logger.error({"evento": "Erro executando nmap", "ip": ip, "detalhes": str(e)})
+
+    return result
+
+
+# -----------------------
 # Passive discovery (sniff)
 # -----------------------
 def discover_passively(timeout: int = DEFAULT_PASSIVE_TIMEOUT) -> Set[str]:
     """
-    Sniff passivamente na(s) interfaces configuradas por `timeout` segundos.
-    Retorna um set de IPs observados.
+    Sniff passivamente na(s) interfaces por `timeout` segundos.
+    Retorna set de IPs observados.
     """
     if not verificar_permissoes():
         logger.warning({
@@ -114,7 +204,6 @@ def discover_passively(timeout: int = DEFAULT_PASSIVE_TIMEOUT) -> Set[str]:
         except Exception as e:
             logger.debug({"evento": "Erro handler passivo", "detalhes": str(e)})
 
-    # sniff global (padrão scapy tenta em todas interfaces)
     sniff(store=0, prn=_pkt_handler, timeout=timeout)
     logger.info({"evento": "Descoberta passiva concluída", "total": len(seen_ips)})
     return seen_ips
@@ -125,12 +214,11 @@ def discover_passively(timeout: int = DEFAULT_PASSIVE_TIMEOUT) -> Set[str]:
 # -----------------------
 def get_local_subnets() -> Set[Tuple[str, str]]:
     """
-    Retorna um set de (iface, subnet) onde subnet é CIDR string ex: '192.168.1.0/24'.
-    Usa scapy.conf.ifaces ou get_if_list/get_if_addr para robustez.
+    Retorna set de (iface, subnet_cidr). Usa conf.ifaces quando possível,
+    senão get_if_list/get_if_addr com heurística /24.
     """
     subnets: Set[Tuple[str, str]] = set()
 
-    # 1) tentar conf.ifaces (mais info: inclui netmask)
     try:
         for iface_name, iface_data in conf.ifaces.items():
             ip = getattr(iface_data, "ip", None)
@@ -145,22 +233,17 @@ def get_local_subnets() -> Set[Tuple[str, str]]:
             except Exception as e:
                 logger.debug({"evento": "Ignorando interface (erro parse)", "iface": iface_name, "detalhes": str(e)})
     except Exception:
-        logger.debug({"evento": "Falha ao ler conf.ifaces; tentando get_if_list()"})
+        logger.debug({"evento": "Falha conf.ifaces; usando fallback get_if_list()"})
 
-    # 2) fallback para get_if_list/get_if_addr com /24 por padrão
     if not subnets:
         for iface in get_if_list():
             try:
                 ip = get_if_addr(iface)
                 if not ip or ip.startswith("127."):
                     continue
-                # heurística: assumir /24 se não houver netmask conhecida
-                try:
-                    net = str(ipaddress.ip_network(f"{ip}/24", strict=False))
-                    subnets.add((iface, net))
-                    logger.info({"evento": "Interface (fallback) detectada", "iface": iface, "ip": ip, "subnet": net})
-                except Exception:
-                    continue
+                net = str(ipaddress.ip_network(f"{ip}/24", strict=False))
+                subnets.add((iface, net))
+                logger.info({"evento": "Interface (fallback) detectada", "iface": iface, "ip": ip, "subnet": net})
             except Exception:
                 continue
 
@@ -172,8 +255,8 @@ def get_local_subnets() -> Set[Tuple[str, str]]:
 # -----------------------
 def arp_scan(network_cidr: str, timeout: int = DEFAULT_ARP_TIMEOUT) -> List[Dict[str, str]]:
     """
-    Executa ARP scan na faixa indicada (ex: '192.168.1.0/24').
-    Retorna lista de dicts: {'ip':..., 'mac':..., 'subnet': ...}
+    Executa ARP scan na faixa (ex: '192.168.1.0/24').
+    Retorna list dict {'ip','mac','subnet'}.
     """
     results: List[Dict[str, str]] = []
     try:
@@ -191,19 +274,14 @@ def arp_scan(network_cidr: str, timeout: int = DEFAULT_ARP_TIMEOUT) -> List[Dict
 
 
 # -----------------------
-# ICMP sweep (ping)
+# ICMP sweep
 # -----------------------
 def icmp_ping_sweep(ip_list: List[str], timeout: int = DEFAULT_ICMP_TIMEOUT) -> Set[str]:
-    """
-    Envia ICMP echo para uma lista de IPs (usando scapy sr com vários destinos).
-    Retorna set de IPs que responderam.
-    """
+    """Envia ICMP echo para uma lista de IPs; retorna set de IPs que responderam."""
     alive: Set[str] = set()
     if not ip_list:
         return alive
-
     try:
-        # scapy aceita IP(dst=[]) para múltiplos destinos
         packets = IP(dst=ip_list) / ICMP()
         answered, _ = sr(packets, timeout=timeout, verbose=0)
         for snd, rcv in answered:
@@ -213,17 +291,16 @@ def icmp_ping_sweep(ip_list: List[str], timeout: int = DEFAULT_ICMP_TIMEOUT) -> 
                 continue
     except Exception as e:
         logger.debug({"evento": "Erro no ICMP sweep", "detalhes": str(e)})
-
     return alive
 
 
 # -----------------------
-# TCP probe simples
+# TCP probe rápido (connect)
 # -----------------------
 def tcp_probe(ip: str, ports: List[int], timeout: float = DEFAULT_TCP_TIMEOUT) -> Dict[int, bool]:
     """
-    Tenta conexão TCP simples (connect_ex) nas portas fornecidas.
-    Retorna dict {porta: True/False}.
+    Tenta conexão TCP connect_ex nas portas; retorna dict porta->bool.
+    Uso rápido, não substitui nmap para descoberta completa.
     """
     results: Dict[int, bool] = {}
     for p in ports:
@@ -248,12 +325,19 @@ def run_full_discovery(
     ports: Optional[List[int]] = None,
     parallel_workers: int = MAX_WORKERS,
     save_per_interface: bool = False,
+    use_nmap: bool = USE_NMAP_FOR_FULL_PORT_SCAN,
 ) -> List[Dict[str, Any]]:
     """
-    Executa: descoberta passiva -> obtém subnets por interface -> ARP scan por subnet (paralelo)
-                 -> ICMP sweep em hosts descobertos -> TCP probes em portas comuns
-    Retorna lista de dispositivos com campos:
-      ip, mac (se conhecido), subnet, iface (se conhecido), alive_icmp, portas (dict), discovered_via (list)
+    Pipeline completo:
+      1) passive sniff
+      2) get local subnets
+      3) ARP scan por subnet (paralelo)
+      4) preencher com passivos
+      5) ICMP sweep (chunks)
+      6) TCP probes rápidos (paralelo)
+      7) (opcional) nmap -p- por host para descobrir todas portas (paralelo)
+      8) (opcional) usar escanear_portas para detalhes
+      9) salvar JSON
     """
     if ports is None:
         ports = COMMON_PLC_PORTS
@@ -265,27 +349,25 @@ def run_full_discovery(
     start_ts = time()
     logger.info({"evento": "Começando descoberta completa"})
 
-    # 1) sniff passivo (coleta IPs observados)
+    # 1) sniff passivo
     passive_ips = discover_passively(timeout=passive_timeout)
 
-    # 2) obter subnets por interface
-    iface_subnets = get_local_subnets()  # set of (iface, cidr)
+    # 2) obter subnets
+    iface_subnets = get_local_subnets()
     if not iface_subnets:
         logger.warning({"evento": "Nenhuma interface/sub-rede detectada"})
         return []
 
-    # 3) ARP scan por subnet (paralelo)
+    # 3) ARP scan paralelo
     all_devices: Dict[str, Dict[str, Any]] = {}
-    arp_futures = []
     with ThreadPoolExecutor(max_workers=parallel_workers) as ex:
-        for iface, subnet in iface_subnets:
-            arp_futures.append(ex.submit(arp_scan, subnet, arp_timeout))
-
-        for fut in as_completed(arp_futures):
+        futures = {ex.submit(arp_scan, subnet, arp_timeout): (iface, subnet) for iface, subnet in iface_subnets}
+        for fut in as_completed(futures):
+            iface, subnet = futures[fut]
             try:
                 devices = fut.result()
             except Exception as e:
-                logger.debug({"evento": "Erro em ARP future", "detalhes": str(e)})
+                logger.debug({"evento": "Erro em ARP future", "iface": iface, "subnet": subnet, "detalhes": str(e)})
                 devices = []
             for d in devices:
                 ip = d["ip"]
@@ -294,7 +376,7 @@ def run_full_discovery(
                         "ip": ip,
                         "mac": d.get("mac"),
                         "subnet": d.get("subnet"),
-                        "iface": None,  # será preenchido abaixo se possível
+                        "iface": iface,
                         "discovered_via": ["arp"],
                         "alive_icmp": False,
                         "portas": {},
@@ -304,8 +386,10 @@ def run_full_discovery(
                         all_devices[ip]["discovered_via"].append("arp")
                     if not all_devices[ip].get("mac"):
                         all_devices[ip]["mac"] = d.get("mac")
+                    if not all_devices[ip].get("iface"):
+                        all_devices[ip]["iface"] = iface
 
-    # 4) marcar IPs passivos que não foram pegos por ARP
+    # 4) incluir IPs passivos que não apareceram no ARP
     for ip in passive_ips:
         if ip not in all_devices:
             all_devices[ip] = {
@@ -321,7 +405,7 @@ def run_full_discovery(
             if "passive" not in all_devices[ip]["discovered_via"]:
                 all_devices[ip]["discovered_via"].append("passive")
 
-    # 5) tentar identificar iface/subnet para cada device baseado nas subnets conhecidas
+    # 5) associar iface/subnet por matching de rede
     for iface, subnet in iface_subnets:
         net = ipaddress.ip_network(subnet)
         for ip, entry in all_devices.items():
@@ -333,9 +417,8 @@ def run_full_discovery(
             except Exception:
                 continue
 
-    # 6) complementar com ARP cache do sistema
+    # 6) complementar com ARP cache
     try:
-        import os  # import local para evitar top-level dependency if not needed
         arp_cache = _read_arp_cache()
         for ip, mac in arp_cache.items():
             if ip in all_devices and not all_devices[ip].get("mac"):
@@ -343,10 +426,9 @@ def run_full_discovery(
     except Exception:
         arp_cache = {}
 
-    # 7) ICMP sweep (paralelo por chunks) para todos IPs descobertos para marcar alive
+    # 7) ICMP sweep em chunks
     ips_list = list(all_devices.keys())
-    alive_ips = set()
-    # sr with many targets: do in chunks of 200 to avoid packet explosion
+    alive_ips: Set[str] = set()
     chunk = 200
     for i in range(0, len(ips_list), chunk):
         sub = ips_list[i : i + chunk]
@@ -359,7 +441,7 @@ def run_full_discovery(
             if "icmp" not in all_devices[ip]["discovered_via"]:
                 all_devices[ip]["discovered_via"].append("icmp")
 
-    # 8) TCP probes em portas comuns (paralelo por host)
+    # 8) tcp_probe rápido em paralelo (opcional antes do nmap)
     with ThreadPoolExecutor(max_workers=parallel_workers) as ex:
         future_map = {ex.submit(tcp_probe, ip, ports, tcp_timeout): ip for ip in all_devices.keys()}
         for fut in as_completed(future_map):
@@ -367,40 +449,61 @@ def run_full_discovery(
             try:
                 res = fut.result()
                 all_devices[ip]["portas"] = res
-                # se alguma porta aberta, marca discovered_via
                 if any(res.values()) and "tcp" not in all_devices[ip]["discovered_via"]:
                     all_devices[ip]["discovered_via"].append("tcp")
             except Exception as e:
                 logger.debug({"evento": "Erro tcp_probe", "ip": ip, "detalhes": str(e)})
 
-    # 9) fallback: usar seu escanear_portas (se quiser mais detalhes)
-    #    (opcional) se escanear_portas for mais completo, pode usá-lo para hosts com portas abertas detectadas
-    try:
+    # 9) Nmap (varredura completa de portas) - paralelo por host (pode ser lento)
+    if use_nmap and _nmap_available():
+        logger.info({"evento": "Usando nmap para varredura completa de portas (pode demorar)"})
         with ThreadPoolExecutor(max_workers=parallel_workers) as ex:
-            futures = {}
-            for ip, entry in all_devices.items():
-                # se já detectou alguma porta aberta no tcp_probe, ou se quer varrer todos, usamos o scanner customizado
-                if any(entry.get("portas", {}).values()):
-                    futures[ex.submit(escanear_portas, ip)] = ip
-            for fut in as_completed(futures):
-                ip = futures[fut]
+            future_map = {ex.submit(nmap_scan_host, ip, True, None, True, NMAP_TIMEOUT_PER_HOST): ip for ip in all_devices.keys()}
+            for fut in as_completed(future_map):
+                ip = future_map[fut]
                 try:
-                    portas_detalhadas = fut.result()
-                    all_devices[ip]["portas_detalhadas"] = portas_detalhadas
+                    nmap_res = fut.result()
+                    all_devices[ip]["portas_nmap"] = nmap_res
+                    any_open = any(v.get("state") == "open" for v in nmap_res.values())
+                    if any_open and "nmap" not in all_devices[ip]["discovered_via"]:
+                        all_devices[ip]["discovered_via"].append("nmap")
                 except Exception as e:
-                    logger.debug({"evento": "Erro escanear_portas future", "ip": ip, "detalhes": str(e)})
-    except Exception:
-        # se escanear_portas não existir ou der problema, ignora
-        pass
+                    logger.debug({"evento": "Erro nmap_scan_host", "ip": ip, "detalhes": str(e)})
+    else:
+        if use_nmap:
+            logger.warning({"evento": "nmap configurado mas não instalado; pulando nmap step"})
 
-    # resultado final
+    # 10) fallback: escanear_portas (se disponível) para hosts com portas abertas detectadas
+    if escanear_portas:
+        try:
+            with ThreadPoolExecutor(max_workers=parallel_workers) as ex:
+                futures = {}
+                for ip, entry in all_devices.items():
+                    # define quando chamar: se detectou portas abertas via tcp_probe ou nmap
+                    call = False
+                    if entry.get("portas") and any(entry["portas"].values()):
+                        call = True
+                    if entry.get("portas_nmap") and any(v.get("state") == "open" for v in entry["portas_nmap"].values()):
+                        call = True
+                    if call:
+                        futures[ex.submit(escanear_portas, ip)] = ip
+                for fut in as_completed(futures):
+                    ip = futures[fut]
+                    try:
+                        portas_detalhadas = fut.result()
+                        all_devices[ip]["portas_detalhadas"] = portas_detalhadas
+                    except Exception as e:
+                        logger.debug({"evento": "Erro escanear_portas future", "ip": ip, "detalhes": str(e)})
+        except Exception:
+            pass
+
+    # resultado final e salvamento
     devices_final = list(all_devices.values())
     devices_final = _safe_ip_sort(devices_final)
 
     elapsed = time() - start_ts
     logger.info({"evento": "Descoberta completa", "total": len(devices_final), "tempo_segundos": elapsed})
 
-    # 10) salvar resultados
     try:
         with open(DISCOVERY_FILE, "w", encoding="utf-8") as f:
             json.dump(devices_final, f, indent=2, ensure_ascii=False)
@@ -408,14 +511,15 @@ def run_full_discovery(
     except Exception as e:
         logger.error({"evento": "Falha ao salvar resultados", "detalhes": str(e)})
 
-    # salvar por interface (opcional)
+    # salvar por interface opcional
     if save_per_interface:
         by_iface: Dict[str, List[Dict[str, Any]]] = {}
         for d in devices_final:
             iface = d.get("iface") or "unknown"
             by_iface.setdefault(iface, []).append(d)
         for iface, lst in by_iface.items():
-            fname = f"{DISCOVERY_FILE.rstrip('.json')}_{iface}.json"
+            safe_base = DISCOVERY_FILE.rstrip(".json")
+            fname = f"{safe_base}_{iface}.json"
             try:
                 with open(fname, "w", encoding="utf-8") as f:
                     json.dump(lst, f, indent=2, ensure_ascii=False)
@@ -427,7 +531,7 @@ def run_full_discovery(
 
 
 # -----------------------
-# função helper para uso em background (como antes)
+# helper para background
 # -----------------------
 def discovery_background_once() -> None:
     logger.info({"evento": "Iniciando discovery_background_once"})
@@ -438,11 +542,11 @@ def discovery_background_once() -> None:
 
 
 # -----------------------
-# se executado diretamente
+# executável
 # -----------------------
 if __name__ == "__main__":
     logger.info({"evento": "--- SCRIPT DE DESCOBERTA INICIADO ---"})
-    devices = run_full_discovery(save_per_interface=True)
+    devices = run_full_discovery(save_per_interface=True, use_nmap=USE_NMAP_FOR_FULL_PORT_SCAN)
     if devices:
         logger.info({"evento": "Execução finalizada com sucesso", "total": len(devices)})
     else:
