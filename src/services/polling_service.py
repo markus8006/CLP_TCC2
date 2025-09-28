@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from src.adapters.modbus_adapter import ModbusAdapter
 from src.controllers.clp_controller import ClpController
 from src.utils.log.log import setup_logger
+from src.utils.root.paths import YAML_FILE
 
 LOG = setup_logger()
 
@@ -83,7 +84,7 @@ class CLPPoller(threading.Thread):
 
         # fallback para arquivo yaml (opcional)
         try:
-            with open("src/config/plc_registers.yaml", "r", encoding="utf-8") as f:
+            with open(YAML_FILE, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
             devices = cfg.get("devices", [])
             for d in devices:

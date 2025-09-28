@@ -1,0 +1,10 @@
+192.168.18.101:
+- address: 0
+  name: Registrador_0
+- address: 1
+  name: Registrador_1
+192.168.18.102:
+- address: 0
+  name: Registrador_0
+- address: 1
+  name: Registrador_1

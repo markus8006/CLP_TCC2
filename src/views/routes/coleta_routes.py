@@ -4,13 +4,15 @@ import json
 import os
 import logging
 from datetime import datetime
-from typing import Optional, List
-from flask import Blueprint, current_app, jsonify, Response, render_template
+from typing import Optional, List, Dict
+from flask import Blueprint, current_app, jsonify, Response, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 from src.utils.decorators.decorators import role_required  
 
 from src.utils.network.discovery import discovery_background_once, logger as discovery_logger
 from src.utils.root.paths import DISCOVERY_FILE
+
+import ipaddress
 
 # Blueprint da área de administração
 coleta = Blueprint("coleta", __name__, url_prefix="/coleta")
@@ -178,3 +180,110 @@ def coleta_ips_results():
     except Exception as e:
         current_app.logger.exception("Erro ao abrir DISCOVERY_FILE: %s", e)
         return ("error reading discovery file", 500)
+
+
+
+_file_lock = threading.Lock()
+
+def _load_discovery_file() -> List[Dict]:
+    try:
+        if not os.path.exists(DISCOVERY_FILE):
+            return []
+        with open(DISCOVERY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+    except Exception:
+        current_app.logger.exception("Erro lendo DISCOVERY_FILE")
+    return []
+
+def _save_discovery_file(data: List[Dict]) -> bool:
+    try:
+        # criar pasta se necessário
+        os.makedirs(os.path.dirname(DISCOVERY_FILE), exist_ok=True)
+        with open(DISCOVERY_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception:
+        current_app.logger.exception("Erro salvando DISCOVERY_FILE")
+        return False
+
+
+@coleta.route("/manual", methods=["GET", "POST"])
+@login_required
+@role_required("admin")
+def coleta_manual():
+    """
+    Página para adicionar/editar CLPs manualmente.
+    GET: renderiza formulário
+    POST: valida e salva (upsert por IP) no DISCOVERY_FILE com campo 'manual': True
+    """
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()
+        ip = request.form.get("ip", "").strip()
+        iface = request.form.get("iface", "").strip() or None
+        subnet = request.form.get("subnet", "").strip() or None
+        portas_raw = request.form.get("portas", "").strip()  # ex: "502,102,4840"
+        # validações básicas
+        if not nome:
+            flash("Nome é obrigatório.", "danger")
+            return redirect(url_for("coleta.coleta_manual"))
+        try:
+            ipaddress.ip_address(ip)
+        except Exception:
+            flash("IP inválido.", "danger")
+            return redirect(url_for("coleta.coleta_manual"))
+
+        portas_list = []
+        if portas_raw:
+            for p in portas_raw.split(","):
+                try:
+                    pnum = int(p.strip())
+                    if 0 <= pnum <= 65535:
+                        portas_list.append(pnum)
+                except Exception:
+                    continue
+
+        # montar entry
+        portas_dict = {str(p): False for p in portas_list} if portas_list else {}
+        entry = {
+            "ip": ip,
+            "mac": request.form.get("mac", "").strip() or None,
+            "subnet": subnet,
+            "iface": iface,
+            "discovered_via": ["manual"],
+            "manual": True,
+            "alive_icmp": False,
+            "portas": portas_dict,
+            "nome": nome,
+            "created_at": datetime.utcnow().isoformat()
+        }
+
+        # upsert no DISCOVERY_FILE com lock
+        with _file_lock:
+            data = _load_discovery_file()
+            # procura por IP existente
+            replaced = False
+            for i, d in enumerate(data):
+                if d.get("ip") == ip:
+                    # atualiza campos (mantendo históricos se existirem)
+                    d.update(entry)
+                    d["discovered_via"] = list(dict.fromkeys(d.get("discovered_via", []) + ["manual"]))
+                    d["manual"] = True
+                    data[i] = d
+                    replaced = True
+                    break
+            if not replaced:
+                data.append(entry)
+
+            ok = _save_discovery_file(data)
+
+        if ok:
+            flash(f"CLP {ip} salvo com sucesso.", "success")
+        else:
+            flash("Erro ao salvar o CLP.", "danger")
+        return redirect(url_for("coleta.coleta_manual"))
+
+    # GET -> renderiza template passando lista atual
+    existing = _load_discovery_file()
+    return render_template("clp_manual.html", clps=existing)

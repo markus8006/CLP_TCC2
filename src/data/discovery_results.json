@@ -3670,5 +3670,21 @@
       "161": false,
       "4840": false
     }
+  },
+  {
+    "ip": "127.0.0.1",
+    "mac": "00:1A:2B:3C:4D:5F",
+    "subnet": "127.0.0.1/24",
+    "iface": "eth0",
+    "discovered_via": [
+      "manual"
+    ],
+    "manual": true,
+    "alive_icmp": false,
+    "portas": {
+      "5020": false
+    },
+    "nome": "Teste local",
+    "created_at": "2025-09-28T19:12:25.441901"
   }
 ]

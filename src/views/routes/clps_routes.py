@@ -10,6 +10,7 @@ clps_bp = Blueprint('clps', __name__, url_prefix='/clp')
 clps_por_pagina = 21
 devices_por_pagina = 21
 
+
 def obter_clps_lista():
     # usa o service através do controller
     return ClpController.listar()
