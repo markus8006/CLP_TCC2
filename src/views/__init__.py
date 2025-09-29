@@ -31,6 +31,7 @@ def get_project_root():
 
 
 def create_app():
+    global app
     app = Flask(__name__)
     
     # --- Configurações essenciais ---

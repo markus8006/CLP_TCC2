@@ -10,6 +10,13 @@ from src.controllers.clp_controller import ClpController
 from src.utils.log.log import setup_logger
 from src.utils.root.paths import YAML_FILE
 
+
+from src.models.Registers import RegisterValue, CLP, LogEntry
+
+
+
+
+
 LOG = setup_logger()
 
 MODBUS_MAX_REGS = 125  # limite por request (função 3/4)
@@ -51,6 +58,32 @@ def build_batches(registers: List[Dict[str, Any]]) -> List[Tuple[str, int, int, 
             batches.append((rtype, start, count, group))
             i = j
     return batches
+
+
+
+
+
+def add_log(clp: dict, entry: str):
+    """
+    Adiciona uma entrada de log no CLP evitando duplicatas consecutivas
+    e mantendo no máximo 200 logs.
+    """
+    logs = clp.setdefault("logs", [])
+
+    # Evita duplicata consecutiva
+    if logs and logs[-1] == entry:
+        return
+
+    logs.append(entry)  # ✅ adiciona de fato
+
+    # Limita o tamanho máximo da lista
+    if len(logs) > 200:
+        logs.pop(0)
+
+
+
+
+
 
 
 # ---------------------------------------------------
@@ -101,25 +134,45 @@ class CLPPoller(threading.Thread):
         last = self._last_read.get(reg["name"], 0)
         return (now - last) >= interval
 
-    def _update_clp_and_cache(self, reg_name: str, value: Any):
+    # importar app se estiver disponível
+
+    def _update_clp_and_cache(self, reg_name: str, value: any):
+        from src.views import db, app
         ts = time.time()
-        # cache local
+
+    # Atualiza cache local
         with self._lock:
             self.cache.setdefault(self.clp.get("ip"), {})
             self.cache[self.clp.get("ip")][reg_name] = {"value": value, "timestamp": ts}
-        # persistir no clp via ClpController (usa editar_clp(old, new) conforme seu padrão)
+
+    # Atualiza CLP no controller (opcional)
         try:
             clp_current = ClpController.obter_por_ip(self.clp.get("ip"))
-            if not clp_current:
-                LOG.warning("CLPPoller: CLP não encontrado ao atualizar cache %s", self.clp.get("ip"))
-                return
-            # manter chave registers_values para exposição / UI
-            clp_current.setdefault("registers_values", {})
-            clp_current["registers_values"][reg_name] = {"value": value, "timestamp": ts}
-            # chamar editar_clp passando old e new (conforme seu uso atual)
-            ClpController.editar_clp(ClpController.obter_por_ip(self.clp.get("ip")), clp_current)
+            if clp_current:
+                clp_current.setdefault("registers_values", {})
+                clp_current["registers_values"][reg_name] = {"value": value, "timestamp": ts}
+                ClpController.editar_clp(clp_current, clp_current)
         except Exception as e:
             LOG.exception("Erro atualizando ClpController para %s: %s", self.clp.get("ip"), e)
+
+    # Persistência no banco (dentro do app context!)
+        try:
+            from src.models.Registers import RegisterValue
+            with app.app_context():
+                rv = RegisterValue(
+                clp_ip=self.clp.get("ip"),
+                reg_name=reg_name,
+                value=str(value),
+                timestamp=ts
+            )
+                db.session.add(rv)
+                db.session.commit()
+                LOG.debug("RegisterValue salvo: %s = %s", reg_name, value)
+        except Exception as e:
+            with app.app_context():
+                db.session.rollback()
+            LOG.exception("Erro salvando RegisterValue para %s: %s", self.clp.get("ip"), e)
+
 
     def run(self):
         ip = self.clp.get("ip")

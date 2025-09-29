@@ -144,7 +144,7 @@ def clp_values(ip):
     data = {}
     if clp:
         data["registers_values"] = clp.get("registers_values", {})
-        data["logs"] = clp.get("logs", [])
+        data["logs"] = clp.get("logs", [])[-50:]
         data["status"] = clp.get("status", "Offline")
     else:
         cache = polling_service.get_cache()
