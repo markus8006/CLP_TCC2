@@ -141,33 +141,6 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='scripts/graficos.js') }}"></script>
+<!-- <script src="{{ url_for('static', filename='scripts/graficos.js') }}"></script> -->
 <script src="{{ url_for('static', filename='scripts/detalhes.js') }}"></script>
-<script>
-// Este script é apenas um exemplo, a lógica principal está em detalhes.js
-const ip = "{{ clp.ip }}";
-
-document.getElementById("btnAddTag").addEventListener("click", function () {
-    const novaTag = document.getElementById("inputTag").value.trim();
-    if (!novaTag) {
-        alert("Digite uma tag antes de adicionar");
-        return;
-    }
-
-    fetch(`/clps/${ip}/tags/assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tag: novaTag })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            window.location.reload(); // Recarrega a página para ver a tag
-        } else {
-            alert(data.message || "Erro ao associar tag");
-        }
-    })
-    .catch(error => console.error("Erro na requisição:", error));
-});
-</script>
 {% endblock %}

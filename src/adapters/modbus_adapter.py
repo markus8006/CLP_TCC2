@@ -1,5 +1,5 @@
 # src/adapters/modbus_adapter.py
-from typing import Dict, Any, Optional, List, cast
+from typing import Dict, Any, Optional, List
 from pymodbus.client import ModbusTcpClient
 from src.adapters.base_adapter import BaseAdapter
 from src.utils.log.log import setup_logger
@@ -27,6 +27,7 @@ class ModbusAdapter(BaseAdapter):
         Conecta a um CLP via Modbus TCP.
         Se já estiver conectado, substitui a conexão.
         """
+        
         ip = clp.get("ip")
         if not isinstance(ip, str) or not ip:
             logger.error({"evento": "connect: ip inválido ou ausente", "clp": clp})
@@ -36,8 +37,14 @@ class ModbusAdapter(BaseAdapter):
         p = port or portas[0]
 
         try:
-            client = ModbusTcpClient(host=ip, port=p)
-            ok = client.connect()
+            for keys, values in self._active_clients.items():
+                if ip == keys:
+                    client = self._active_clients[keys]
+                    ok = True
+                    break
+            else:
+                client = ModbusTcpClient(host=ip, port=p) 
+                ok = client.connect()
         except Exception as e:
             logger.error({"evento": "Erro ao conectar ModbusTcpClient", "ip": ip, "porta": p, "detalhes": str(e)})
             clp.update({"status": "Offline"})

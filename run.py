@@ -10,7 +10,7 @@ from pymodbus.datastore import (
     ModbusSequentialDataBlock
 )
 from pymodbus.pdu.device import ModbusDeviceIdentification
-from pymodbus.client import ModbusTcpClient
+
 
 # --- Logger ---
 logger = setup_logger()
@@ -20,56 +20,48 @@ app = create_app()
 
 
 # --- Simulação Modbus ---
+import asyncio
+from pymodbus.server import StartAsyncTcpServer
+
+
+
+
+# --- Simulação Modbus ---
+
 def simulation():
-    # ... (seu código de simulação permanece o mesmo)
-    store1 = ModbusDeviceContext(hr=ModbusSequentialDataBlock(0, [0]*10))
-    store2 = ModbusDeviceContext(hr=ModbusSequentialDataBlock(0, [100 + i for i in range(5)]))
-    
+    """
+    Cria e executa um servidor Modbus TCP síncrono e estável com um único dispositivo.
+    Esta é a forma mais robusta de o fazer para o seu ambiente de desenvolvimento.
+    """
+    # --- Usa ModbusSlaveContext para um servidor simples e padrão ---
+    # O dispositivo terá 10 holding registers com valores de 100 a 109 para teste.
+
+    store1 = ModbusDeviceContext(hr=ModbusSequentialDataBlock(0, [0]*10)) 
+    store2 = ModbusDeviceContext(hr=ModbusSequentialDataBlock(0, [100 + i for i in range(5)])) 
     context = ModbusServerContext(devices={1: store1, 2: store2}, single=False)
+
     identity = ModbusDeviceIdentification()
     identity.VendorName = 'Simulated CLP'
-    # ... (resto da identificação)
-    logger.info("Servidor Modbus TCP rodando em 127.0.0.1:5020")
-    StartTcpServer(context=context, identity=identity, address=("127.0.0.1", 5020))
+    identity.ProductCode = 'SIM'
+    identity.VendorUrl = 'http://localhost'
+    identity.ProductName = 'SimCLP'
+    identity.ModelName = 'SimCLP v1'
+    identity.MajorMinorRevision = '1.0'
 
+    logger.info("Servidor Modbus TCP (Modo Single/Síncrono) a rodar em 127.0.0.1:5020")
+    # Usa o servidor síncrono, que é mais estável para este cenário
+    StartTcpServer(context=context, identity=identity, address=("127.0.0.1", 5020))
 
 # --- Main ---
 if __name__ == "__main__":
-    # Rodar servidor Modbus em thread separada PRIMEIRO
     threading.Thread(target=simulation, daemon=True).start()
-
-    # Adicione uma pequena pausa aqui
-    logger.info("Aguardando o servidor Modbus iniciar...")
-    time.sleep(1)  # Espera 1 segundo para garantir que o servidor esteja no ar
-
-    # Agora, inicie o polling service
+    logger.info("A aguardar o servidor Modbus iniciar...")
+    time.sleep(1)
+    
     polling_service.start_all_from_controller()
 
-    # --- Início do Código de Teste Corrigido ---
-    logger.info("--- INICIANDO TESTE DE CLIENTE MODBUS ---")
-    # try:
-    #     # c = ModbusTcpClient('127.0.0.1', port=5020)
-    #     # c.connect()
-        
-    #     # # O Unit ID que queremos ler é o 1
-    #     # unit_id_para_ler = 2
-        
-    #     # logger.info(f"A tentar ler do Unit ID: {unit_id_para_ler}")
-        
-    #     # # Correção: O parâmetro correto para a sua versão é 'unit'
-    #     # resp = c.read_holding_registers(1, count=1, device_id=unit_id_para_ler)
-        
-    #     # if resp.isError():
-    #     #     logger.error(f"Resposta de erro do Modbus: {resp}")
-    #     # else:
-    #     #     logger.info(f"Resposta bem-sucedida: {resp.registers}")
-            
-    #     # c.close()
-    # except Exception as e:
-    #     logger.error(f"Erro durante o teste do cliente: {e}")
-    # logger.info("--- FIM DO TESTE DE CLIENTE MODBUS ---")
-    # # --- Fim do Código de Teste ---
-
-    # Rodar Flask
-    logger.info("Servidor Flask rodando em 0.0.0.0:5000")
+    logger.info("Servidor Flask a rodar em 0.0.0.0:5000")
+    # use_reloader=False é crucial para evitar que a thread do Modbus seja reiniciada incorretamente
     app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+
+

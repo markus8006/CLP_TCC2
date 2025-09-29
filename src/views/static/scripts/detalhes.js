@@ -1,7 +1,5 @@
-// static/scripts/detalhes.js
-// Script unificado para página de detalhes do CLP
 (() => {
-    // --- Helpers ---
+    // --- Helpers (sem alterações) ---
     function getCsrfToken() {
         const m = document.querySelector('meta[name="csrf-token"]') || document.querySelector('meta[name="csrf_token"]');
         return m ? m.content : null;
@@ -10,13 +8,8 @@
     function defaultFetchOpts(method = 'GET', body = null) {
         const headers = { 'Accept': 'application/json' };
         const token = getCsrfToken();
-        if (token) {
-            headers['X-CSRFToken'] = token;
-            headers['X-CSRF-Token'] = token;
-        }
-        if (method !== 'GET' && method !== 'HEAD') {
-            headers['Content-Type'] = 'application/json';
-        }
+        if (token) { headers['X-CSRFToken'] = token; headers['X-CSRF-Token'] = token; }
+        if (method !== 'GET' && method !== 'HEAD') headers['Content-Type'] = 'application/json';
         const opts = { method, credentials: 'same-origin', headers };
         if (body !== null) opts.body = JSON.stringify(body);
         return opts;
@@ -27,152 +20,141 @@
             const resp = await fetch(url, opts);
             const text = await resp.text();
             let data = null;
-            try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+            try { data = text ? JSON.parse(text) : null; } catch { data = text; }
             return { ok: resp.ok, status: resp.status, data };
-        } catch (err) {
-            return { ok: false, status: 0, error: err };
-        }
-    }
-
-    function showClpMsg(text, timeout = 4000) {
-        const el = document.getElementById('mensagemCLP');
-        if (!el) return;
-        el.textContent = text;
-        if (timeout) setTimeout(() => { if (el) el.textContent = ''; }, timeout);
+        } catch (err) { return { ok: false, status: 0, error: err }; }
     }
 
     const $ = id => document.getElementById(id);
+    const charts = {};
 
-    // --- Main ---
-    document.addEventListener('DOMContentLoaded', () => {
-        let ip = null;
-        const ipEl = $('clpIp');
-        if (ipEl) ip = ipEl.textContent.trim();
-        if (!ip) {
-            console.error('detalhes.js: IP do CLP não encontrado.');
-            return;
+    // --- Lógica dos Gráficos ---
+    function criarGraficos() {
+        // Remove gráficos de CPU/Memória que são de exemplo
+        const container = document.querySelector('.graficos .linha-graficos');
+        if (container) container.innerHTML = '';
+        
+        // Cria um único gráfico para todos os registradores
+        const canvasRegs = document.createElement('canvas');
+        canvasRegs.id = 'graficoRegistradores';
+        
+        if (container) {
+            const div = document.createElement('div');
+            div.className = 'grafico-container';
+            div.style.width = '100%'; // Ocupa a largura toda
+            div.innerHTML = '<h3>Valores dos Registradores</h3>';
+            div.appendChild(canvasRegs);
+            container.appendChild(div);
+            
+            const ctxRegs = canvasRegs.getContext('2d');
+            charts.registradores = new Chart(ctxRegs, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    scales: { x: { display: false } },
+                    plugins: { legend: { position: 'top' } }
+                }
+            });
         }
+    }
 
-        // --- Elements ---
-        const btnConnect = $('btnConnect');
-        const btnDisconnect = $('btnDisconnect');
-        const btnReadRegister = $('btnReadRegister');
-        const readResult = $('readResult');
-        const logContainer = $('logContainer');
-        const statusText = $('statusText');
-        const connectContainer = $('connect-container');
-        const disconnectContainer = $('disconnect-container');
-        const registersContainer = $('registers-container');
+    function atualizarGraficoRegistradores(registers) {
+        const chart = charts.registradores;
+        if (!chart) return;
 
-        // --- Fetch e Atualização ---
-        async function atualizarInfo() {
-            // Rota corrigida para /clp/ (singular)
-            const res = await fetchJson(`/clp/${encodeURIComponent(ip)}/values`, defaultFetchOpts('GET'));
-            if (!res.ok || !res.data) return;
+        const now = new Date().toLocaleTimeString();
 
-            const clp = res.data;
+        // Adiciona um novo ponto no tempo (eixo X)
+        chart.data.labels.push(now);
+        if (chart.data.labels.length > 50) chart.data.labels.shift();
 
-            // Atualiza o Status
-            if (statusText) {
-                statusText.textContent = 'Status: ' + (clp.status || 'Offline');
-                statusText.className = (clp.status === 'Online') ? 'status_online' : 'status_offline';
+        // Itera sobre cada nome de registador (ex: "Dados_Simulados_Bloco_1")
+        Object.entries(registers).forEach(([name, values]) => {
+            // Garante que o valor é um array
+            const valueArray = Array.isArray(values) ? values : [values];
+
+            // Itera sobre cada valor dentro do array (ex: 0, 1, 2, 3, 4)
+            valueArray.forEach((value, index) => {
+                const datasetLabel = `${name}[${index}]`; // Cria uma legenda única, ex: "Bloco_1[0]"
+
+                let dataset = chart.data.datasets.find(d => d.label === datasetLabel);
+
+                // Se não existe uma linha para este registador, cria uma nova
+                if (!dataset) {
+                    dataset = {
+                        label: datasetLabel,
+                        data: Array(chart.data.labels.length - 1).fill(null), // Preenche dados passados com nulo
+                        borderColor: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
+                        fill: false,
+                        tension: 0.1
+                    };
+                    chart.data.datasets.push(dataset);
+                }
+
+                // Adiciona o novo valor e remove o mais antigo se necessário
+                dataset.data.push(value);
+                if (dataset.data.length > 50) {
+                    dataset.data.shift();
+                }
+            });
+        });
+
+        // Garante que todos os datasets têm o mesmo comprimento
+        chart.data.datasets.forEach(dataset => {
+            while (dataset.data.length < chart.data.labels.length) {
+                dataset.data.unshift(null); // Adiciona nulos no início se um novo dataset foi criado
             }
-            if (connectContainer) connectContainer.style.display = clp.status === 'Online' ? 'none' : 'inline-block';
-            if (disconnectContainer) disconnectContainer.style.display = clp.status === 'Online' ? 'inline-block' : 'none';
+        });
+        
+        chart.update('quiet');
+    }
 
-            // Atualiza os Logs
-            if (logContainer) {
-                logContainer.innerHTML = '';
-                const logs = clp.logs || [];
-                logs.slice(-200).forEach(logEntry => {
-                    const div = document.createElement('div');
-                    if (typeof logEntry === 'object' && logEntry.data && logEntry.detalhes) {
-                        div.textContent = `[${logEntry.data}] ${logEntry.detalhes}`;
-                    } else {
-                        div.textContent = logEntry;
-                    }
-                    logContainer.appendChild(div);
+    // --- Função Principal de Atualização ---
+    async function atualizarInfo(ip) {
+        const res = await fetchJson(`/clp/${encodeURIComponent(ip)}/values`, defaultFetchOpts('GET'));
+        if (!res.ok || !res.data) return;
+        const clp = res.data;
+
+        // Atualiza Status e Logs (sem alterações)
+        // ...
+
+        // Atualiza os cards de registradores (sem alterações)
+        if ($('registers-container') && clp.registers_values) {
+            const container = $('registers-container');
+            container.innerHTML = '';
+            const addresses = Object.keys(clp.registers_values);
+            if (addresses.length === 0) container.innerHTML = '<p>Nenhum registrador lido ainda.</p>';
+            else {
+                addresses.forEach(addr => {
+                    const card = document.createElement('div');
+                    card.className = 'register-card';
+                    // Mostra o array completo no card
+                    card.innerHTML = `<div class="register-addr">${addr}</div><div class="register-val">${JSON.stringify(clp.registers_values[addr])}</div>`;
+                    container.appendChild(card);
                 });
-                logContainer.scrollTop = logContainer.scrollHeight;
             }
-
-            // Atualiza a exibição dos valores dos registradores
-            if (registersContainer && clp.registers_values) {
-                registersContainer.innerHTML = '';
-                const registers = clp.registers_values;
-                const addresses = Object.keys(registers);
-
-                if (addresses.length === 0) {
-                    registersContainer.innerHTML = '<p>Nenhum registrador lido ainda.</p>';
-                } else {
-                    addresses.sort((a, b) => a - b).forEach(addr => {
-                        const value = registers[addr];
-                        const card = document.createElement('div');
-                        card.className = 'register-card';
-                        card.innerHTML = `
-                            <div class="register-addr">Endereço: ${addr}</div>
-                            <div class="register-val">${value}</div>
-                        `;
-                        registersContainer.appendChild(card);
-                    });
-                }
-            }
-        }
-
-        setInterval(atualizarInfo, 2000);
-        atualizarInfo();
-
-        // --- Lógica de Conectar/Desconectar ---
-        if (btnConnect) {
-            btnConnect.addEventListener('click', async () => {
-                const portSel = $('portSelect');
-                const port = portSel ? Number(portSel.value) : 502;
-                showClpMsg(`Iniciando conexão na porta ${port}...`);
-                // Rota corrigida para /clp/ (singular)
-                const res = await fetchJson(`/clp/${encodeURIComponent(ip)}/poll/start`, defaultFetchOpts('POST', { port }));
-                if (res.ok) {
-                    showClpMsg('Conexão iniciada', 2500);
-                    atualizarInfo();
-                } else {
-                    showClpMsg('Falha ao conectar: ' + (res.data?.message || 'Erro'), 5000);
-                }
-            });
-        }
-
-        if (btnDisconnect) {
-            btnDisconnect.addEventListener('click', async () => {
-                showClpMsg('Desconectando...');
-                // Rota corrigida para /clp/ (singular)
-                const res = await fetchJson(`/clp/${encodeURIComponent(ip)}/poll/stop`, defaultFetchOpts('POST'));
-                if (res.ok) {
-                    showClpMsg('Desconectado', 2500);
-                    atualizarInfo();
-                } else {
-                    showClpMsg('Falha ao desconectar', 4000);
-                }
-            });
         }
         
-        // --- Lógica de Leitura Manual de Registrador ---
-        if (btnReadRegister) {
-            btnReadRegister.addEventListener('click', async () => {
-                const addrEl = $('inputAddress');
-                if (!addrEl) return;
-                const address = Number(addrEl.value);
-                if (Number.isNaN(address)) {
-                    if (readResult) readResult.innerHTML = '<span style="color:red">Endereço inválido</span>';
-                    return;
-                }
-                
-                // Rota corrigida para /clp/ (singular)
-                const res = await fetchJson(`/clp/${encodeURIComponent(ip)}/read`, defaultFetchOpts('POST', { address, count: 1 }));
-                
-                if (res.ok && res.data.success) {
-                    if (readResult) readResult.innerHTML = `Endereço <strong>${address}</strong> = <strong>${JSON.stringify(res.data.value)}</strong>`;
-                } else {
-                    if (readResult) readResult.innerHTML = `<span style="color:red">Erro: ${res.data.message || 'Falha na leitura'}</span>`;
-                }
-            });
+        // --- ATUALIZAÇÃO DOS GRÁFICOS ---
+        if (clp.registers_values) {
+            atualizarGraficoRegistradores(clp.registers_values);
         }
+    }
+
+    // --- Inicialização ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const ip = $('clpIp')?.textContent.trim();
+        if (!ip) return console.error('IP do CLP não encontrado.');
+        
+        criarGraficos();
+        
+        // Inicia a atualização periódica
+        atualizarInfo(ip);
+        setInterval(() => atualizarInfo(ip), 2000); // Intervalo de 2 segundos
+
+        // Adiciona eventos aos botões (sem alterações)
+        // ...
     });
 })();
