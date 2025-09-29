@@ -1,5 +1,7 @@
 (() => {
     // --- Helpers ---
+    const $ = id => document.getElementById(id);
+
     function getCsrfToken() {
         const m = document.querySelector('meta[name="csrf-token"]') || document.querySelector('meta[name="csrf_token"]');
         return m ? m.content : null;
@@ -25,40 +27,66 @@
         } catch (err) { return { ok: false, status: 0, error: err }; }
     }
 
-    const $ = id => document.getElementById(id);
     const charts = {};
 
     // --- Criação dos gráficos ---
     function criarGraficos() {
+        // CPU
+        const ctxCpu = $('graficoCpu').getContext('2d');
+        charts.cpu = new Chart(ctxCpu, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Uso de CPU (%)', data: [], borderColor: '#ff00ff', backgroundColor: 'rgba(255,0,255,0.2)', fill: true, tension: 0.4 }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // Memória
+        const ctxMem = $('graficoMemoria').getContext('2d');
+        charts.memoria = new Chart(ctxMem, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Uso de Memória (%)', data: [], borderColor: '#00ffff', backgroundColor: 'rgba(0,255,255,0.2)', fill: true, tension: 0.4 }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // Registradores
         const container = document.querySelector('.graficos .linha-graficos');
-        if (!container) return;
-
-        container.innerHTML = ''; // limpa exemplos antigos
-
         const canvasRegs = document.createElement('canvas');
         canvasRegs.id = 'graficoRegistradores';
-
         const div = document.createElement('div');
         div.className = 'grafico-container';
-        div.style.width = '100%';
         div.innerHTML = '<h3>Valores dos Registradores</h3>';
         div.appendChild(canvasRegs);
         container.appendChild(div);
 
-        const ctxRegs = canvasRegs.getContext('2d');
-        charts.registradores = new Chart(ctxRegs, {
+        charts.registradores = new Chart(canvasRegs.getContext('2d'), {
             type: 'line',
             data: { labels: [], datasets: [] },
             options: {
                 animation: false,
                 responsive: true,
-                scales: { x: { display: false } },
-                plugins: { legend: { position: 'top' } }
+                maintainAspectRatio: false,
+                scales: {
+                    x: { display: false },
+                    y: { beginAtZero: true }
+                },
+                plugins: { legend: { position: 'top', labels: { color: 'white' } } }
             }
         });
     }
 
-    // --- Atualiza gráfico com os valores do CLP ---
+    // --- Funções de atualização dos gráficos ---
+    function atualizarGraficoSimples(chart, value) {
+        if (!chart) return;
+        const now = new Date().toLocaleTimeString();
+        chart.data.labels.push(now);
+        chart.data.datasets[0].data.push(value);
+
+        if (chart.data.labels.length > 20) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+        chart.update('quiet');
+    }
+
     function atualizarGraficoRegistradores(registers) {
         const chart = charts.registradores;
         if (!chart) return;
@@ -72,12 +100,11 @@
             const valueArray = Array.isArray(valuesRaw) ? valuesRaw : [valuesRaw];
 
             valueArray.forEach((value, index) => {
-                const datasetLabel = `${name}[${index}]`;
-                let dataset = chart.data.datasets.find(d => d.label === datasetLabel);
-
+                const label = `${name}[${index}]`;
+                let dataset = chart.data.datasets.find(d => d.label === label);
                 if (!dataset) {
                     dataset = {
-                        label: datasetLabel,
+                        label,
                         data: Array(chart.data.labels.length - 1).fill(null),
                         borderColor: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
                         fill: false,
@@ -85,17 +112,13 @@
                     };
                     chart.data.datasets.push(dataset);
                 }
-
                 dataset.data.push(value);
                 if (dataset.data.length > 50) dataset.data.shift();
             });
         });
 
-        // Garante mesmo comprimento de todos datasets
-        chart.data.datasets.forEach(dataset => {
-            while (dataset.data.length < chart.data.labels.length) {
-                dataset.data.unshift(null);
-            }
+        chart.data.datasets.forEach(d => {
+            while (d.data.length < chart.data.labels.length) d.data.unshift(null);
         });
 
         chart.update('quiet');
@@ -112,8 +135,9 @@
             const container = $('registers-container');
             container.innerHTML = '';
             const addresses = Object.keys(clp.registers_values);
-            if (addresses.length === 0) container.innerHTML = '<p>Nenhum registrador lido ainda.</p>';
-            else {
+            if (addresses.length === 0) {
+                container.innerHTML = '<p>Nenhum registrador lido ainda.</p>';
+            } else {
                 addresses.forEach(addr => {
                     const card = document.createElement('div');
                     card.className = 'register-card';
@@ -123,8 +147,16 @@
             }
         }
 
-        // Atualiza gráfico
-        if (clp.registers_values) atualizarGraficoRegistradores(clp.registers_values);
+        // Atualiza os gráficos
+        if (clp.registers_values) {
+            atualizarGraficoRegistradores(clp.registers_values);
+        }
+
+        // **LÓGICA ADICIONADA: Atualiza CPU e Memória com dados simulados**
+        const fakeCpuUsage = Math.random() * 100;
+        const fakeMemUsage = 50 + Math.random() * 20;
+        atualizarGraficoSimples(charts.cpu, fakeCpuUsage.toFixed(2));
+        atualizarGraficoSimples(charts.memoria, fakeMemUsage.toFixed(2));
     }
 
     // --- Inicialização ---
@@ -133,8 +165,7 @@
         if (!ip) return console.error('IP do CLP não encontrado.');
 
         criarGraficos();
-
         atualizarInfo(ip);
-        setInterval(() => atualizarInfo(ip), 2000); // atualiza a cada 2s
+        setInterval(() => atualizarInfo(ip), 2000);
     });
 })();

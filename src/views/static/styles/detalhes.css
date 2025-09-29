@@ -43,23 +43,27 @@
 
 .grafico-container {
     flex: 1 1 320px;
-    max-width: auto;
-    min-width: auto;
-    background: rgba(255,255,255,0.05);
+    max-width: 100%;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 14px;
     padding: 18px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 2px 12px rgba(20,1,44,0.7);
+    box-shadow: 0 2px 12px rgba(20, 1, 44, 0.7);
     transition: box-shadow 0.2s;
+
+    /* Altura fixa para evitar crescimento infinito */
+    height: 300px;
 }
 
 .grafico-container canvas {
-    width: 100% !important;
-    max-width: auto;
-    height: 260px !important;
+    width: 100%;
+    /* ocupa largura total do container */
+    height: 100%;
+    /* ocupa altura do container */
 }
 
 @media (max-width: 900px) {

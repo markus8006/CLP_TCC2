@@ -21,6 +21,9 @@ from datetime import datetime
 from src.repositories.json_repo import carregar_arquivo, salvar_arquivo
 # ... resto do código
 
+from src.views import db
+from src.models.Registers import CLP
+
 # src/services/device_service.py
 
 
@@ -29,6 +32,29 @@ import ipaddress
 # Blueprint da área de administração
 coleta = Blueprint("coleta", __name__, url_prefix="/coleta")
 
+def criar_clp_no_db(dados: dict) -> CLP:
+    ip = dados.get("ip")
+    clp = CLP.query.filter_by(ip=ip).first()
+    if clp:
+        # Atualiza campos
+        clp.nome = dados.get("nome", clp.nome)
+        clp.tipo = dados.get("tipo", clp.tipo)
+        clp.subnet = dados.get("subnet", clp.subnet)
+        clp.portas = ",".join(map(str, dados.get("portas", [])))
+    else:
+        # Cria novo
+        clp = CLP(
+            ip=ip,
+            nome=dados.get("nome"),
+            tipo=dados.get("tipo"),
+            subnet=dados.get("subnet"),
+            portas=",".join(map(str, dados.get("portas", []))),
+            status="Offline",
+        )
+        db.session.add(clp)
+    
+    db.session.commit()
+    return clp
 
 # ---- Estado / sincronização ----
 _disc_lock = threading.Lock()
@@ -280,15 +306,12 @@ def coleta_manual():
 
         try:
             if clp_existente:
-                # Se existe, atualiza os dados
-                # A função 'atualizar_clp' faz um merge inteligente dos dados
                 atualizar_clp(clp_existente, dados_clp)
                 flash(f"CLP {ip} foi atualizado com sucesso!", "success")
             else:
-                # Se não existe, cria um novo
-                # A função 'criar_dispositivo' usa o modelo Device para gerar o formato completo
-                criar_dispositivo(dados_clp, Manual=True)
+                criar_dispositivo(dados_clp, grupo="Sem Grupo", Manual=True)
                 flash(f"CLP {ip} foi criado com sucesso!", "success")
+
 
         except Exception as e:
             flash(f"Ocorreu um erro ao salvar o CLP: {e}", "danger")

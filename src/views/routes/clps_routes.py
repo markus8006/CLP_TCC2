@@ -4,6 +4,7 @@ from src.utils.decorators.decorators import role_required
 from src.controllers.clp_controller import ClpController
 from src.controllers.devices_controller import DeviceController
 from src.services.polling_service import polling_service
+import ast
 
 
 clps_bp = Blueprint('clps', __name__, url_prefix='/clp')
@@ -148,21 +149,25 @@ def clp_values(ip):
     data = {}
 
     if clp:
-        # Valores dos registradores
-        data["registers_values"] = {
-            rv.reg_name: rv.value for rv in clp.registers_values
-        }
+        registers_values = {}
+        for rv in clp.registers_values:
+            try:
+                # Converte string tipo "[101, 102, 103]" em lista real
+                val = ast.literal_eval(rv.value)
+                # Garante que cada item seja inteiro
+                registers_values[rv.reg_name] = [int(v) for v in val]
+            except (ValueError, SyntaxError):
+                registers_values[rv.reg_name] = rv.value  # fallback se não for lista
+        data["registers_values"] = registers_values
 
-        # Últimos 50 logs
         logs = LogEntry.query.filter_by(clp_ip=ip)\
             .order_by(LogEntry.timestamp.desc())\
             .limit(50)\
             .all()
         data["logs"] = [
             {"msg": log.log, "timestamp": log.timestamp} for log in logs
-        ][::-1]  # inverte para ordem cronológica
+        ][::-1]
 
-        # Status
         data["status"] = clp.status or "Offline"
 
     else:
@@ -170,9 +175,8 @@ def clp_values(ip):
         data["logs"] = []
         data["status"] = "Offline"
 
-    print(data)
-
     return jsonify(data)
+
 
 
 

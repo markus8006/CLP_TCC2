@@ -7,13 +7,26 @@ from src.utils.root.root import get_project_root
 from src.repositories.json_repo import carregar_arquivo, salvar_arquivo
 from src.models.Device import Device
 from src.utils.root.paths import DEVICES_FILE, CLPS_FILE
+from flask import current_app
+from src.views import db
+from src.models.Registers import CLP
 
 PROJECT_ROOT = get_project_root()
 logger = logging.getLogger(__name__)
 
-# Carrega inicial (garante lista vazia se arquivo não existir/retornar None)
-_clps_data: List[Dict[str, Any]] = carregar_arquivo(CLPS_FILE) or []
-_others_data: List[Dict[str, Any]] = carregar_arquivo(DEVICES_FILE) or []
+# lazy load
+_clps_data: Optional[List[Dict[str, Any]]] = None
+_others_data: Optional[List[Dict[str, Any]]] = None
+
+def _ensure_loaded():
+    global _clps_data, _others_data
+    if _clps_data is None:
+        if current_app:
+            _clps_data = carregar_arquivo(CLPS_FILE) or []
+        else:
+            _clps_data = []
+    if _others_data is None:
+        _others_data = carregar_arquivo(DEVICES_FILE) or []
 
 
 def _now_str() -> str:
@@ -21,12 +34,12 @@ def _now_str() -> str:
 
 
 def buscar_todos() -> List[Dict[str, Any]]:
-    """Retorna uma cópia superficial da lista de CLPs (compatibilidade com código existente)."""
+    _ensure_loaded()
     return list(_clps_data)
 
 
 def buscar_por_ip(ip_procurado: str) -> Optional[Dict[str, Any]]:
-    """Procura por IP nas listas de CLP e outros dispositivos."""
+    _ensure_loaded()
     for clp in _clps_data:
         if clp.get("ip") == ip_procurado:
             return clp
@@ -36,23 +49,23 @@ def buscar_por_ip(ip_procurado: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _remover_por_ip_de_lista(ip: str, lista: List[Dict[str, Any]]) -> None: # pyright: ignore[reportUnusedFunction]
-    """Remove o primeiro elemento com o IP fornecido da lista (mutável)."""
+def _remover_por_ip_de_lista(ip: str, lista: List[Dict[str, Any]]) -> None:
     idx = next((i for i, e in enumerate(lista) if e.get("ip") == ip), None)
     if idx is not None:
         lista.pop(idx)
 
 
 def salvar_clps() -> None:
+    _ensure_loaded()
     salvar_arquivo(CLPS_FILE, _clps_data)
 
 
 def salvar_others() -> None:
+    _ensure_loaded()
     salvar_arquivo(DEVICES_FILE, _others_data)
 
 
 def _to_int_list(iterable: Optional[Iterable[Any]]) -> List[int]:
-    """Converte uma sequência de valores possivelmente string/int em lista de ints (ignora inválidos)."""
     if not iterable:
         return []
     out: List[int] = []
@@ -64,175 +77,87 @@ def _to_int_list(iterable: Optional[Iterable[Any]]) -> List[int]:
     return sorted(list(set(out)))
 
 
-def criar_dispositivo(dados: Dict[str, Any], grupo: str = "Sem Grupo", Manual=False) -> Dict[str, Any]:
+def criar_dispositivo(dados: dict, grupo: str = "Sem Grupo", Manual=False) -> CLP:
     """
-    Cria um dispositivo (ou atualiza portas se já existir). Não altera outras listas/estruturas externas.
+    Cria ou atualiza um CLP no banco de dados.
+    Mantém a interface compatível com a versão JSON.
     """
     ip = dados.get("ip")
-    mac = dados.get("mac")
-    subnet = dados.get("subnet", "Desconhecida")
-    portas_raw : List[int] = dados.get("portas", []) or []
-    portas = _to_int_list(portas_raw)
-    protocolo = "modbus"
-
-    if not ip or not isinstance(ip, str):
+    if not ip:
         logger.warning("[WARN] criar_dispositivo chamado sem IP válido.")
-        return {}
+        return None
 
-    existente = buscar_por_ip(ip)
-    if existente:
-        logger.info(f"[INFO] Atualizando dispositivo existente: {ip}")
-        portas_existentes = set(_to_int_list(existente.get("portas", [])))
-        portas_existentes.update(portas)
-        existente["portas"] = sorted(list(portas_existentes))
-        existente.setdefault("logs", []).append({
-            "acao": "Atualizacao",
-            "detalhes": f"Portas atualizadas: {portas}",
-            "data": _now_str()
-        })
-        if existente.get("tipo") == "CLP":
-            salvar_clps()
-        else:
-            salvar_others()
-        return existente
+    # Busca no DB
+    clp = CLP.query.filter_by(ip=ip).first()
 
-    # determina fabricante via MAC (se fornecida)
-    fabricante = "Desconhecido"
-    if mac and isinstance(mac, str):
-        try:
-            reg = EUI(mac).oui.registration()
-            # registration pode ser objeto ou dict dependendo da versão; tente atributos comuns
-            fabricante = ( # pyright: ignore[reportUnknownVariableType]
-                getattr(reg, "org", None)
-                or getattr(reg, "company", None)
-                or (reg.get("org") if isinstance(reg, dict) and "org" in reg else None) # type: ignore
-                or str(reg)
-            )
-            fabricante = fabricante or "Desconhecido" # pyright: ignore[reportUnknownVariableType]
-        except Exception:
-            fabricante = "Desconhecido"
+    # Garantir que portas seja lista de inteiros
+    portas_raw = dados.get("portas", [])
+    portas_list = [int(p) for p in portas_raw if str(p).isdigit()]
 
-    # heurística para tipo
-    tipo = "Desconhecido"
-    fabricante_l : str = (fabricante or "").lower() # type: ignore
-    if fabricante_l.startswith(("siemens", "rockwell", "schneider", "mitsubishi")): # type: ignore
-        tipo = "CLP"
-    elif any(p in portas for p in (5000, 5357)):
-        tipo = "Computador"
-    elif 22 in portas:
-        tipo = "Servidor ou Dispositivo IoT"
-    elif 80 in portas or 443 in portas:
-        tipo = "Smartphone / Tablet / Web Device"
-    elif 554 in portas or 8554 in portas:
-        tipo = "Câmera IP"
-    elif Manual:
-        tipo = "CLP"
+    tipo = dados.get("tipo", "CLP") if Manual else "CLP"
 
-    nome = f"{tipo}_{ip}" if tipo != "Desconhecido" else f"Desconhecido_{ip}"
+    if clp:
+        # Atualiza campos
+        clp.nome = dados.get("nome", clp.nome)
+        clp.subnet = dados.get("subnet", clp.subnet)
+        clp.portas = portas_list
+        clp.grupo = grupo or getattr(clp, "grupo", "Sem Grupo")
+        clp.protocolo = dados.get("protocolo", clp.protocolo)
+        db.session.commit()
+        logger.info(f"[INFO] CLP {ip} atualizado no banco de dados.")
+        return clp
 
-    dispositivo = Device(
+    # Cria novo
+    clp = CLP(
         ip=ip,
-        mac=mac or "",
-        subnet=subnet,
-        portas=sorted(list(set(portas))),
-        nome=nome,
+        nome=dados.get("nome") or f"{tipo}_{ip}",
         tipo=tipo,
+        subnet=dados.get("subnet"),
+        portas=portas_list,
         grupo=grupo,
-        protocolo=protocolo
-    ).to_dict()
+        protocolo=dados.get("protocolo", "modbus"),
+        status="Offline"
+    )
+    db.session.add(clp)
+    db.session.commit()
+    logger.info(f"[INFO] Novo CLP {ip} criado no banco de dados.")
+    return clp
 
-    dispositivo.setdefault("logs", []).append({
-        "acao": "Enriquecimento",
-        "detalhes": f"Dispositivo identificado como {tipo}, fabricante: {fabricante}",
-        "data": _now_str()
-    })
-
-    if tipo == "CLP":
-        _clps_data.append(dispositivo)
-        salvar_clps()
-        logger.info(f"[INFO] Novo CLP criado e salvo em {CLPS_FILE}: {ip}")
-    else:
-        _others_data.append(dispositivo)
-        salvar_others()
-        logger.info(f"[INFO] Novo dispositivo (não-CLP) criado e salvo em {DEVICES_FILE}: {ip}")
-
-    return dispositivo
 
 
 def listar_clps() -> List[Dict[str, Any]]:
+    _ensure_loaded()
     return list(_clps_data)
 
 
 def listar_devices() -> List[Dict[str, Any]]:
+    _ensure_loaded()
     return list(_others_data)
 
 
-def atualizar_clp(json_antigo: Union[Dict[str, Any], str], json_novo: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def atualizar_clp(clp_antigo: Union[CLP, str], dados_novos: dict) -> CLP:
     """
-    Atualiza um CLP existente.
-    Aceita `json_antigo` como dict OU como string contendo o IP (compatibilidade).
-    Faz merge inteligente de 'logs', 'portas', 'tags' e 'metadata'. Substitui outros campos.
+    Atualiza um CLP existente no banco de dados.
+    clp_antigo pode ser um objeto CLP ou um IP.
     """
-    # permite receber ip diretamente (compatibilidade com chamadas erradas)
-    if isinstance(json_antigo, str):
-        ip = json_antigo
-    elif isinstance(json_antigo, dict): # type: ignore
-        ip = json_antigo.get("ip")
+    if isinstance(clp_antigo, str):
+        clp = CLP.query.filter_by(ip=clp_antigo).first()
+    elif isinstance(clp_antigo, CLP):
+        clp = clp_antigo
     else:
-        ip = None
-
-    if not ip:
-        logging.warning("[WARN] atualizar_clp chamado sem IP válido no JSON antigo.")
         return None
 
-    # Busca CLP correspondente
-    clp = next((c for c in _clps_data if c.get("ip") == ip), None)
     if not clp:
-        logging.warning(f"[WARN] Nenhum CLP encontrado com IP {ip}.")
+        logger.warning(f"[WARN] Nenhum CLP encontrado para atualização: {clp_antigo}")
         return None
 
-    # Atualiza campos do CLP
-    for key, value in (json_novo or {}).items():
-        if key == "logs":
-            if isinstance(value, list):
-                clp.setdefault("logs", []).extend(value)
-            elif isinstance(value, str):
-                clp.setdefault("logs", []).append(value)
-            else:
-                # ignora tipos estranhos
-                continue
-        elif key == "portas":
-            novas_portas = _to_int_list(value)
-            portas_existentes = set(_to_int_list(clp.get("portas", [])))
-            portas_existentes.update(novas_portas)
-            clp["portas"] = sorted(list(portas_existentes))
-        elif key == "tags":
-            if isinstance(value, list):
-                tags_existentes = set(clp.get("tags", []))
-                tags_existentes.update([str(t) for t in value]) # type: ignore
-                clp["tags"] = sorted(list(tags_existentes))
-            elif isinstance(value, str):
-                parts = [t.strip() for t in value.split(",") if t.strip()]
-                tags_existentes = set(clp.get("tags", []))
-                tags_existentes.update(parts)
-                clp["tags"] = sorted(list(tags_existentes))
-        elif key == "metadata":
-            if isinstance(value, dict):
-                clp.setdefault("metadata", {}).update(value)
-            else:
-                # ignora se metadata não for dict
-                continue
-        else:
-            # substitui valor simples
-            clp[key] = value
+    # Atualiza campos do banco
+    for key, value in dados_novos.items():
+        if key == "portas":
+            clp.portas = ",".join(map(str, value))
+        elif hasattr(clp, key):
+            setattr(clp, key, value)
 
-    # adiciona log automático
-    clp.setdefault("logs", []).append({
-        "acao": "Atualizacao",
-        "detalhes": f"Dispositivo atualizado com novos dados: {list((json_novo or {}).keys())}",
-        "data": _now_str()
-    })
-
-    salvar_clps()
-    logging.info(f"[INFO] CLP {ip} atualizado com sucesso.")
+    db.session.commit()
+    logger.info(f"[INFO] CLP {clp.ip} atualizado com novos dados: {list(dados_novos.keys())}")
     return clp
