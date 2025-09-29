@@ -2,3 +2,7 @@
 .env
 .pytest_cache
 *__pycache__
+
+# Ignorar arquivos grandes que quebram o push
+src/data/clps.json
+src/data/tmpayk0gs7n
