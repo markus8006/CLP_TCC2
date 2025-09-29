@@ -7,8 +7,22 @@ class CLP(db.Model):
     ip = db.Column(db.String(50), unique=True, nullable=False)
     nome = db.Column(db.String(100))
     status = db.Column(db.String(50))
-    registers_values = db.relationship("RegisterValue", backref="clp", lazy=True)
-    logs = db.relationship("LogEntry", backref="clp", lazy=True)
+
+    # 👇 Aqui você coloca o primaryjoin
+    registers_values = db.relationship(
+        "RegisterValue",
+        primaryjoin="CLP.ip == RegisterValue.clp_ip",
+        backref="clp",
+        lazy=True
+    )
+
+    logs = db.relationship(
+        "LogEntry",
+        primaryjoin="CLP.ip == LogEntry.clp_ip",
+        backref="clp",
+        lazy=True
+    )
+
 
 class RegisterValue(db.Model):
     __tablename__ = "registers_values"
@@ -17,6 +31,7 @@ class RegisterValue(db.Model):
     reg_name = db.Column(db.String(50))
     value = db.Column(db.String(100))
     timestamp = db.Column(db.Float, default=datetime.utcnow().timestamp)
+
 
 class LogEntry(db.Model):
     __tablename__ = "logs"

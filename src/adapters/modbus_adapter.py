@@ -48,10 +48,12 @@ class ModbusAdapter(BaseAdapter):
         clp.setdefault("logs", [])
         if ok:
             self._active_clients[ip] = client
-            clp.update({"status": "Conectado"})
-            add_log(clp, f"Conectado via Modbus na porta {p}")
-            logger.info({"evento": "Modbus conectado", "ip": ip, "porta": p})
+            if clp.get("status") != "Conectado":  # só loga se houve mudança
+                clp.update({"status": "Conectado"})
+                add_log(clp, f"Conectado via Modbus na porta {p}")
+                logger.info({"evento": "Modbus conectado", "ip": ip, "porta": p})
             return True
+
         else:
             clp.update({"status": "Offline"})
             add_log(clp, f"Falha ao conectar via Modbus na porta {p}")
@@ -110,11 +112,11 @@ class ModbusAdapter(BaseAdapter):
                 return None
 
             # sucesso
-            add_log(clp, f"Lido registrador {address} -> {response.registers}")
+            # add_log(clp, f"Lido registrador {address} -> {response.registers}")
             return response.registers
 
         except Exception as e:
-            add_log(clp, f"Exceção ao ler registrador {address}: {e}")
+            # add_log(clp, f"Exceção ao ler registrador {address}: {e}")
             logger.error({
                 "evento": "read_tag: exceção durante a leitura",
                 "ip": ip, "detalhes": str(e)

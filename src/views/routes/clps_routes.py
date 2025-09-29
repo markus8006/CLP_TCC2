@@ -5,6 +5,7 @@ from src.controllers.clp_controller import ClpController
 from src.controllers.devices_controller import DeviceController
 from src.services.polling_service import polling_service
 
+
 clps_bp = Blueprint('clps', __name__, url_prefix='/clp')
 
 clps_por_pagina = 21
@@ -137,21 +138,42 @@ def read_register(ip):
     return jsonify(success=True, value=vals)
 
 
+from src.views import db
+from src.models.Registers import CLP, RegisterValue, LogEntry
+
 @clps_bp.route("/<ip>/values", methods=["GET"])
 @login_required
 def clp_values(ip):
-    clp = ClpController.obter_por_ip(ip)
+    clp = CLP.query.filter_by(ip=ip).first()
     data = {}
+
     if clp:
-        data["registers_values"] = clp.get("registers_values", {})
-        data["logs"] = clp.get("logs", [])[-50:]
-        data["status"] = clp.get("status", "Offline")
+        # Valores dos registradores
+        data["registers_values"] = {
+            rv.reg_name: rv.value for rv in clp.registers_values
+        }
+
+        # Últimos 50 logs
+        logs = LogEntry.query.filter_by(clp_ip=ip)\
+            .order_by(LogEntry.timestamp.desc())\
+            .limit(50)\
+            .all()
+        data["logs"] = [
+            {"msg": log.log, "timestamp": log.timestamp} for log in logs
+        ][::-1]  # inverte para ordem cronológica
+
+        # Status
+        data["status"] = clp.status or "Offline"
+
     else:
-        cache = polling_service.get_cache()
-        data["registers_values"] = cache.get(ip, {})
+        data["registers_values"] = {}
         data["logs"] = []
         data["status"] = "Offline"
+
+    print(data)
+
     return jsonify(data)
+
 
 
 @clps_bp.route("/<ip>/status", methods=["GET"])

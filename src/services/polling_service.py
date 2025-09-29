@@ -140,20 +140,20 @@ class CLPPoller(threading.Thread):
         from src.views import db, app
         ts = time.time()
 
-    # Atualiza cache local
-        with self._lock:
-            self.cache.setdefault(self.clp.get("ip"), {})
-            self.cache[self.clp.get("ip")][reg_name] = {"value": value, "timestamp": ts}
+    # # Atualiza cache local
+    #     with self._lock:
+    #         self.cache.setdefault(self.clp.get("ip"), {})
+    #         self.cache[self.clp.get("ip")][reg_name] = {"value": value, "timestamp": ts}
 
-    # Atualiza CLP no controller (opcional)
-        try:
-            clp_current = ClpController.obter_por_ip(self.clp.get("ip"))
-            if clp_current:
-                clp_current.setdefault("registers_values", {})
-                clp_current["registers_values"][reg_name] = {"value": value, "timestamp": ts}
-                ClpController.editar_clp(clp_current, clp_current)
-        except Exception as e:
-            LOG.exception("Erro atualizando ClpController para %s: %s", self.clp.get("ip"), e)
+    # # Atualiza CLP no controller (opcional)
+    #     try:
+    #         clp_current = ClpController.obter_por_ip(self.clp.get("ip"))
+    #         if clp_current:
+    #             clp_current.setdefault("registers_values", {})
+    #             clp_current["registers_values"][reg_name] = {"value": value, "timestamp": ts}
+    #             ClpController.editar_clp(clp_current, clp_current)
+    #     except Exception as e:
+    #         LOG.exception("Erro atualizando ClpController para %s: %s", self.clp.get("ip"), e)
 
     # Persistência no banco (dentro do app context!)
         try:
