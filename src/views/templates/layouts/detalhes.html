@@ -1,18 +1,18 @@
-{% extends "base.html" %}
+{% extends "layouts/base.html" %}
 
 {% block title %}Detalhes do CLP{% endblock %}
 
 {% block css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='styles/detalhes.css') }}">
-<style>
-    .tag-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-    .tag-item { background-color: #5a009d; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.9em; display: flex; align-items: center; }
-    .remove-tag { margin-left: 8px; cursor: pointer; font-weight: bold; }
-    .registers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
-    .register-card { background-color: rgba(0,0,0,0.15); padding: 10px; border-radius: 5px; }
-    .register-addr { font-weight: bold; color: var(--accent); }
-    .register-val { font-size: 1.2em; text-align: right; }
-</style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/layouts/detalhes.css') }}">
+    <style>
+        .tag-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag-item { background-color: #5a009d; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.9em; display: flex; align-items: center; }
+        .remove-tag { margin-left: 8px; cursor: pointer; font-weight: bold; }
+        .registers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .register-card { background-color: rgba(0,0,0,0.15); padding: 10px; border-radius: 5px; }
+        .register-addr { font-weight: bold; color: var(--accent); }
+        .register-val { font-size: 1.2em; text-align: right; }
+    </style>
 {% endblock %}
 
 {% block content %}

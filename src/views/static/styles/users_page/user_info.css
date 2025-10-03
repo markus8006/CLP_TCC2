@@ -1,14 +1,11 @@
-{# components/user_info.html #}
-
-<style>
-  :root {
+:root {
     --primary-color: #8400ff;
     --secondary-color: #cc00ff;
     --dark-primary: #220042;
     --dark-bg: #0a0018;
     --text-color: whitesmoke;
 }
-  .user-info {
+.user-info {
     border-radius: 20px;
     background-color: var(--dark-primary);
     display: flex;
@@ -36,23 +33,3 @@
 .user-info .logout-btn:hover {
     color: var(--text-color);
 }
-
-</style>
-
-{% if current_user.is_authenticated %}
-  <div class="user-info small-text">
-    <div class="flex" aria-live="polite" title="Usuário conectado">
-      <div style="margin-left:10px;">
-        <div><strong>{{ current_user.username }}</strong></div>
-        <div class="small-text text-muted">
-          {{ current_user.role.name.title() if current_user.role else 'Sem role' }}
-        </div>
-      </div>
-    </div>
-
-  </div>
-{% else %}
-  <div class="small-text text-muted">
-    Nenhum usuário autenticado.
-  </div>
-{% endif %}

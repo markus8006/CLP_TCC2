@@ -48,7 +48,7 @@ def index():
     total_paginas = (len(clps_lista) + clps_por_pagina - 1) // clps_por_pagina
 
     return render_template(
-        'index.html',
+        'layouts/index.html',
         clps=clps_pagina,
         page=page,
         total_paginas=total_paginas,
