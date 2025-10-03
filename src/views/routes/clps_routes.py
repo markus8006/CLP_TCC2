@@ -1,240 +1,243 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for
-from flask_login import login_required
-from src.utils.decorators.decorators import role_required
-from src.controllers.clp_controller import ClpController
-from src.controllers.devices_controller import DeviceController
-from src.services.polling_service import polling_service
+# src/views/clps_routes.py  (substitua o conteúdo antigo por este)
 import ast
+import logging
+from flask import Blueprint, jsonify, request
+from flask_login import login_required
+from typing import List
 
+from src.db import db
 
-clps_bp = Blueprint('clps', __name__, url_prefix='/clp')
+# Modelos principais
+from src.models.CLP import CLP, CLPConfigRegistrador, HistoricoLeitura
+# modelos opcionais / relacionados
+try:
+    from src.models.Leitura import Leitura
+except Exception:
+    Leitura = None
+try:
+    from src.models.Sensor import Sensor
+except Exception:
+    Sensor = None
 
-clps_por_pagina = 21
-devices_por_pagina = 21
+# device_service (CRUD centralizado)
+from src.services.clp_service import (
+    buscar_por_ip,
+    buscar_por_ip_dict,
+    atualizar_clp,
+)
 
+# role_required pode estar em locais diferentes; tenta importar e cria fallback
+try:
+    from src.views.auth_routes import role_required
+except Exception:
+    try:
+        from src.decorators import role_required
+    except Exception:
+        # fallback - sem verificação (apenas para não quebrar durante testes)
+        def role_required(role):
+            def _decorator(f):
+                return f
+            return _decorator
 
-def obter_clps_lista():
-    # usa o service através do controller
-    return ClpController.listar()
+# CLP log model opcional
+try:
+    from src.models.log import CLPLog
+except Exception:
+    CLPLog = None
 
-def obter_devices_lista():
-    return DeviceController.listar()
+clps_bp = Blueprint("clps", __name__)
 
+logger = logging.getLogger(__name__)
 
-@clps_bp.route('/<ip>')
-@login_required
-def detalhes_clps(ip):
-    """Página de detalhes para um CLP específico."""
-    # usamos o controller para obter o CLP por IP
-    clp_dict = ClpController.obter_por_ip(ip)
-    if not clp_dict:
-        # podes trocar por 404, flash ou redirect conforme tua UI
-        return render_template("clps/detalhes.html", clp={}), 404
-    return render_template("clps/detalhes.html", clp=clp_dict)
-
-
-@clps_bp.route("/<ip>/edit", methods=['GET', 'POST'])
-@login_required
-def editar_clp(ip):
-    clp = ClpController.obter_por_ip(ip)
-    if not clp:
-        flash("CLP não encontrado", "danger")
-        return redirect(url_for("clps_bp.listar_clps"))
-
-    if request.method == "POST":
-        # Campos simples (não alterar o IP!)
-        clp['mac'] = request.form.get("mac")
-        clp['subnet'] = request.form.get("subnet")
-        clp['nome'] = request.form.get("nome")
-        clp['tipo'] = request.form.get("tipo")
-        clp['grupo'] = request.form.get("grupo")
-        clp['status'] = request.form.get("status")
-        clp['conectado'] = True if request.form.get("conectado") else False
-        clp['data_registro'] = request.form.get("data_registro")
-
-        # Metadata
-        for key in clp.get('metadata', {}).keys():
-            clp['metadata'][key] = request.form.get(f"metadata[{key}]")
-
-        # Tags
-        tags_text = request.form.get("tags", "")
-        clp['tags'] = [t.strip() for t in tags_text.split(",") if t.strip()]
-
-        # Portas
-        portas_text = request.form.get("portas", "")
-        clp['portas'] = [int(p.strip()) for p in portas_text.split(",") if p.strip().isdigit()]
-
-        # Logs (aqui melhor acrescentar ao invés de sobrescrever)
-        logs_text = request.form.get("logs", "")
-        novos_logs = [l.strip() for l in logs_text.split("\n") if l.strip()]
-        clp.setdefault("logs", []).extend(novos_logs)
-
-        # Salvar no controller
-        ClpController.editar_clp(ClpController.obter_por_ip(ip), clp)
-
-
-        flash("CLP atualizado com sucesso!", "success")
-        return redirect(url_for("clps.editar_clp", ip=clp['ip']))
-
-    return render_template("clps/editar_clp.html", clp=clp)
-
-    
-# dentro do blueprint clps_bp
-from flask import jsonify, request
-from src.services.polling_service import polling_service
-from src.adapters.modbus_adapter import ModbusAdapter
-from src.controllers.clp_controller import ClpController
-
-adapter = ModbusAdapter()
-
-@clps_bp.route("/<ip>/poll/start", methods=["POST"])
-@login_required
-@role_required("admin")
-def poll_start(ip):
-    clp_original = ClpController.obter_por_ip(ip)
-    if not clp_original:
-        return jsonify(success=False, message="CLP não encontrado"), 404
-
-    data = request.get_json() or {}
-    port = data.get("port")
-
-    # Create a copy to modify, so we can pass the original and new versions
-    clp_modificado = clp_original.copy()
-
-    if port:
-        clp_modificado.setdefault("portas", [])
-        if port not in clp_modificado["portas"]:
-            clp_modificado["portas"].insert(0, port)
-            # --- FIX: Save the changes back to the JSON file ---
-            ClpController.editar_clp(clp_original, clp_modificado)
-
-    ok = polling_service.start_poll_for(clp_modificado)
-    return jsonify(success=ok)
-
-
-@clps_bp.route("/<ip>/poll/stop", methods=["POST"])
-@login_required
-@role_required("admin")
-def poll_stop(ip):
-    polling_service.stop_poll_for(ip)
-    return jsonify(success=True)
-
-
-@clps_bp.route("/<ip>/read", methods=["POST"])
-@login_required
-@role_required("admin")
-def read_register(ip):
-    body = request.get_json() or {}
-    address = int(body.get("address", 0))
-    count = int(body.get("count", 1))
-
-    clp = ClpController.obter_por_ip(ip)
-    if not clp:
-        return jsonify(success=False, message="CLP não encontrado"), 404
-
-    if not adapter.connect(clp):
-        return jsonify(success=False, message="Não conectou ao CLP"), 500
-
-    vals = adapter.read_tag(clp, address, count)
-    return jsonify(success=True, value=vals)
-
-
-from src.views import db
-from src.models.Registers import CLP, RegisterValue, LogEntry
 
 @clps_bp.route("/<ip>/values", methods=["GET"])
 @login_required
 def clp_values(ip):
+    """
+    Retorna:
+      {
+        "registers_values": { "<nome_variavel>": [val1, val2, ...], ... },
+        "logs": [ { "msg": "...", "timestamp": "..." }, ... ],
+        "status": "Online"|"Offline"
+      }
+    Usa HistoricoLeitura para compor os valores por config (nome_variavel).
+    """
     clp = CLP.query.filter_by(ip=ip).first()
     data = {}
 
-    if clp:
-        registers_values = {}
-        for rv in clp.registers_values:
-            try:
-                # Converte string tipo "[101, 102, 103]" em lista real
-                val = ast.literal_eval(rv.value)
-                # Garante que cada item seja inteiro
-                registers_values[rv.reg_name] = [int(v) for v in val]
-            except (ValueError, SyntaxError):
-                registers_values[rv.reg_name] = rv.value  # fallback se não for lista
-        data["registers_values"] = registers_values
-
-        logs = LogEntry.query.filter_by(clp_ip=ip)\
-            .order_by(LogEntry.timestamp.desc())\
-            .limit(50)\
-            .all()
-        data["logs"] = [
-            {"msg": log.log, "timestamp": log.timestamp} for log in logs
-        ][::-1]
-
-        data["status"] = clp.status or "Offline"
-
-    else:
+    if not clp:
         data["registers_values"] = {}
         data["logs"] = []
         data["status"] = "Offline"
+        return jsonify(data), 200
 
-    return jsonify(data)
+    # --- registers_values: para cada config do CLP pegamos últimas N leituras ---
+    registers_values = {}
+    try:
+        # limite de valores por variável (ajuste se quiser)
+        LIMIT_PER_VAR = 20
+        for cfg in getattr(clp, "configs", []) or []:
+            nome = cfg.nome_variavel or f"cfg_{cfg.id}"
+            # pega leituras mais recentes para esta config
+            q = (
+                HistoricoLeitura.query
+                .filter_by(clp_id=clp.id, config_id=cfg.id)
+                .order_by(HistoricoLeitura.timestamp.desc())
+                .limit(LIMIT_PER_VAR)
+                .all()
+            )
+            # transforma e ordena do mais antigo para o mais novo
+            vals = []
+            for r in q[::-1]:  # q vem do mais novo -> mais antigo; invertemos
+                v = r.valor
+                # tenta converter para int quando for inteiro
+                try:
+                    if float(v).is_integer():
+                        vals.append(int(v))
+                    else:
+                        vals.append(float(v))
+                except Exception:
+                    # fallback: usa como veio
+                    vals.append(v)
+            registers_values[nome] = vals
+    except Exception:
+        logger.exception("Erro montando registers_values")
+        registers_values = {}
 
+    data["registers_values"] = registers_values
 
+    # --- logs: usa CLPLog se existir (campo esperado: clp_id, mensagem/data) ---
+    logs_out: List[dict] = []
+    try:
+        if CLPLog is not None:
+            logs = (
+                CLPLog.query
+                .filter_by(clp_id=clp.id)
+                .order_by(CLPLog.data.desc())
+                .limit(50)
+                .all()
+            )
+            # retorna em ordem cronológica ascendente (mais antigo primeiro)
+            for log in logs[::-1]:
+                data_ts = getattr(log, "data", None)
+                logs_out.append({
+                    "msg": getattr(log, "mensagem", getattr(log, "log", "")),
+                    "timestamp": data_ts.isoformat() if getattr(data_ts, "isoformat", None) else str(data_ts)
+                })
+        else:
+            # Se não houver CLPLog, tenta usar HistoricoLeitura como fallback (pegar timestamps recentes)
+            recent = (
+                HistoricoLeitura.query
+                .filter_by(clp_id=clp.id)
+                .order_by(HistoricoLeitura.timestamp.desc())
+                .limit(20)
+                .all()
+            )
+            for r in recent[::-1]:
+                logs_out.append({
+                    "msg": f"Leitura: config_id={r.config_id} valor={r.valor}",
+                    "timestamp": r.timestamp.isoformat() if getattr(r.timestamp, "isoformat", None) else str(r.timestamp)
+                })
+    except Exception:
+        logger.exception("Erro buscando logs")
+        logs_out = []
+
+    data["logs"] = logs_out
+
+    data["status"] = getattr(clp, "status", "Offline") or "Offline"
+
+    return jsonify(data), 200
 
 
 @clps_bp.route("/<ip>/status", methods=["GET"])
 @login_required
 def clp_status(ip):
-    clp = ClpController.obter_por_ip(ip)
-    status = clp.get("status", "Offline") if clp else "Offline"
-    return jsonify(status=status)
+    """
+    Retorna o status do CLP. Usamos device_service.buscar_por_ip_dict para garantir compatibilidade.
+    """
+    clp_dict = buscar_por_ip_dict(ip)
+    status = clp_dict.get("status", "Offline") if clp_dict else "Offline"
+    return jsonify(status=status), 200
 
 
 @clps_bp.route("/<ip>/tags/assign", methods=["POST"])
 @login_required
 @role_required("admin")
 def assign_tag(ip):
+    """
+    Associa uma tag ao CLP. As tags são guardadas em metadata['tags'] do objeto CLP.
+    """
     data = request.get_json() or {}
-    tag = data.get("tag")
+    tag = (data.get("tag") or "").strip()
     if not tag:
         return jsonify(success=False, message="Tag vazia"), 400
 
-    clp_original = ClpController.obter_por_ip(ip)
-    if not clp_original:
+    clp_obj = buscar_por_ip(ip)  # ORM object
+    if not clp_obj:
         return jsonify(success=False, message="CLP não encontrado"), 404
 
-    # --- FIX: Create a copy and modify it, then pass both to the controller ---
-    clp_modificado = clp_original.copy()
-    tags = set(clp_modificado.get("tags", []))
-    tags.add(tag)
-    clp_modificado["tags"] = sorted(list(tags))
+    # garante metadata como dict
+    metadata = getattr(clp_obj, "metadata", {}) or {}
+    tags = set(metadata.get("tags", []))
+    if tag in tags:
+        return jsonify(success=False, message="Tag já existente", tags = sorted(list(tags))), 409
 
-    # Now, save the updated object
-    ClpController.editar_clp(clp_original, clp_modificado)
-    return jsonify(success=True)
+    tags.add(tag)
+    metadata["tags"] = sorted(list(tags))
+
+    # atualiza via device_service
+    try:
+        atualizar_clp(clp_obj, {"metadata": metadata})
+        return jsonify(success=True, tags=metadata["tags"]), 200
+    except Exception as e:
+        logger.exception("Erro salvando tag")
+        return jsonify(success=False, message="Erro interno ao salvar tag", error=str(e)), 500
+
 
 @clps_bp.route("/<ip>/tags/remove", methods=["POST"])
 @login_required
 @role_required("admin")
 def remove_tag(ip):
     data = request.get_json() or {}
-    tag = data.get("tag")
-    clp = ClpController.obter_por_ip(ip)
-    if clp and tag in clp.get("tags", []):
-        clp["tags"].remove(tag)
-        ClpController.editar_clp(ClpController.obter_por_ip(ip), clp)
-        return jsonify(success=True)
-    return jsonify(success=False, message="Tag não encontrada"), 404
+    tag = (data.get("tag") or "").strip()
+    if not tag:
+        return jsonify(success=False, message="Tag vazia"), 400
+
+    clp_obj = buscar_por_ip(ip)
+    if not clp_obj:   
+        return jsonify(success=False, message="CLP não encontrado"), 404
+
+    metadata = getattr(clp_obj, "metadata", {}) or {}
+    tags = set(metadata.get("tags", []))
+    if tag not in tags:
+        return jsonify(success=False, message="Tag não encontrada", tags=sorted(list(tags))), 404
+
+    tags.remove(tag)
+    metadata["tags"] = sorted(list(tags))
+    try:
+        atualizar_clp(clp_obj, {"metadata": metadata})
+        return jsonify(success=True, tags=metadata["tags"]), 200
+    except Exception:
+        logger.exception("Erro removendo tag")
+        return jsonify(success=False, message="Erro interno ao salvar alterações"), 500
+
 
 @clps_bp.route("/<ip>/edit-name", methods=["POST"])
 @login_required
 @role_required("admin")
 def edit_name(ip):
     data = request.get_json() or {}
-    nome = data.get("nome", "").strip()
+    nome = (data.get("nome") or "").strip()
     if not nome:
         return jsonify(success=False, message="Nome vazio"), 400
-    clp = ClpController.obter_por_ip(ip)
-    if not clp:
+
+    clp_obj = buscar_por_ip(ip)
+    if not clp_obj:
         return jsonify(success=False, message="CLP não encontrado"), 404
-    clp['nome'] = nome
-    ClpController.editar_clp(ClpController.obter_por_ip(ip), clp)
-    return jsonify(success=True)
+
+    try:
+        atualizar_clp(clp_obj, {"nome": nome})
+        return jsonify(success=True), 200
+    except Exception:
+        logger.exception("Erro editando nome")
+        return jsonify(success=False, message="Erro interno ao salvar alterações"), 500

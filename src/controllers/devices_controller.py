@@ -1,10 +1,14 @@
 
-from src.services.clp_service import listar_devices
+try:
+    from src.services.clp_service import listar_devices
 
 
-class DeviceController:
+    class DeviceController:
     
     
-    @staticmethod
-    def listar():
-        return listar_devices() 
+        @staticmethod
+        def listar():
+            return listar_devices() 
+
+except:
+    class

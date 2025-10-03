@@ -14,15 +14,15 @@ from src.utils.root.paths import CLPS_FILE
 from src.utils.network.discovery import discovery_background_once, logger as discovery_logger
 from src.utils.root.paths import DISCOVERY_FILE
 
-from src.services.device_service import criar_dispositivo, atualizar_clp, buscar_por_ip
+from src.services.clp_service import criar_dispositivo, atualizar_clp, buscar_por_ip
 from datetime import datetime
 
 # src/services/device_service.py
 from src.repositories.json_repo import carregar_arquivo, salvar_arquivo
 # ... resto do código
 
-from src.views import db
-from src.models.Registers import CLP
+from src.app import db
+from src.models import CLP
 
 # src/services/device_service.py
 
