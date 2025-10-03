@@ -1,5 +1,5 @@
 
-from src.services.device_service import listar_devices
+from src.services.clp_service import listar_devices
 
 
 class DeviceController:
