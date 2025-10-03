@@ -30,7 +30,10 @@ login_manager.login_message_category = "info"
 
 # --- Factory da aplicação ---
 def create_app():
-    app = Flask(__name__, template_folder="src/views/templates")
+    project_root = get_project_root()
+    template_folder = os.path.join(project_root, "views", "templates")
+    static_folder = os.path.join(project_root, "views", "static")
+    app = Flask(__name__, template_folder=template_folder, static_folder=static_folder, static_url_path='/static')
 
     project_root = get_project_root()
     db_path = os.path.join(project_root, "db")
