@@ -5,8 +5,7 @@ from src.app import create_app
 from src.services.polling_service import polling_service
 from src.utils.log.log import setup_logger
 from pymodbus.server import StartTcpServer
-from pymodbus.datastore import ModbusDeviceContext, ModbusServerContext, ModbusSequentialDataBlock
-from pymodbus.pdu.device import ModbusDeviceIdentification
+
 
 logger = setup_logger()
 
@@ -36,4 +35,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
