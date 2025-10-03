@@ -1,4 +1,3 @@
-@import url('base.css');
 
 .container_clps h1, .container_clps h2 {
     margin-bottom: 10px;
@@ -75,3 +74,4 @@
     background-color: #1b00a3;
     transform: translateY(-2px);
 }
+

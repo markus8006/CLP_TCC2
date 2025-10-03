@@ -29,9 +29,9 @@ def main():
     polling_service.set_app(app)
 
     # 2) Inicia simulador em thread (opcional)
-    t = threading.Thread(target=start_modbus_simulator, kwargs={"host": "127.0.0.1", "port": 5020}, daemon=True)
-    t.start()
-    time.sleep(1)
+    # t = threading.Thread(target=start_modbus_simulator, kwargs={"host": "127.0.0.1", "port": 5020}, daemon=True)
+    # t.start()
+    # time.sleep(1)
 
     # 3) Chame start_all_from_controller() DENTRO do app context
     with app.app_context():

@@ -11,3 +11,4 @@ netaddr
 pytest
 colorama
 dotenv
+pyYAML

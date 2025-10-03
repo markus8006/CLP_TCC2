@@ -29,8 +29,8 @@ def detalhes_clps(ip):
     clp_dict = ClpController.obter_por_ip(ip)
     if not clp_dict:
         # podes trocar por 404, flash ou redirect conforme tua UI
-        return render_template("clps/detalhes.html", clp={}), 404
-    return render_template("clps/detalhes.html", clp=clp_dict)
+        return render_template("layouts/detalhes.html", clp={}), 404
+    return render_template("layouts/detalhes.html", clp=clp_dict)
 
 
 @clps_bp.route("/<ip>/edit", methods=['GET', 'POST'])
