@@ -1,6 +1,6 @@
 # /clp_app/users/models.py
 from flask_login import UserMixin
-from src.views import db 
+from src.db import db 
 import enum
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -15,8 +15,6 @@ class User(UserMixin, db.Model):
 
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
-
-   
     role = db.Column(db.Enum(UserRole), nullable=False, default=UserRole.USER)
 
     def set_password(self, password : str):
@@ -35,6 +33,9 @@ class User(UserMixin, db.Model):
     @property
     def is_moderator(self):
         return self.role == UserRole.MODERATOR or self.role == UserRole.ADMIN
+
+
+
 
 
     def __repr__(self):
