@@ -3,7 +3,7 @@ import logging
 from typing import Optional, Dict, Any, List, Union, Iterable
 from datetime import datetime
 
-from src.database import db  # ajuste se o seu DB estiver noutro lugar (ex: from clp_app import db)
+from src.db import db  # ajuste se o seu DB estiver noutro lugar (ex: from clp_app import db)
 
 # Tenta importar modelos nos caminhos esperados; ajuste conforme o seu projeto
 try:

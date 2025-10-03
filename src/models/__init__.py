@@ -1,6 +1,7 @@
 from .CLP import CLP, CLPConfigRegistrador, HistoricoLeitura
 from .Users import User
 from .Leitura import Leitura
+from . Sensor import Sensor
 
 __all__ = [
     "CLP",
@@ -8,4 +9,5 @@ __all__ = [
     "HistoricoLeitura",
     "User",
     "Leitura",
+    "Sensor"
 ]

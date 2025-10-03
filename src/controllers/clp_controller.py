@@ -1,5 +1,5 @@
 # src/controllers/clp_controller.py
-from src.services.device_service import criar_dispositivo, buscar_por_ip, listar_clps, atualizar_clp
+from src.services.clp_service import criar_dispositivo, buscar_por_ip, listar_clps, atualizar_clp
 from src.services.connection_service import conectar as conectar_service, desconectar as desconectar_service
 from typing import List, Dict, Any
 

@@ -4,7 +4,7 @@ import sys
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from src.models import *  # importa aqui para registrar no SQLAlchemy
+from src.models import CLP, CLPConfigRegistrador, HistoricoLeitura, User, Leitura 
 # --- Extensões globais ---
 from src.db import db
 login_manager = LoginManager()
@@ -32,13 +32,12 @@ login_manager.login_message_category = "info"
 def create_app():
     app = Flask(__name__)
 
-    # --- Configuração básica ---
     project_root = get_project_root()
     db_path = os.path.join(project_root, "db")
     os.makedirs(db_path, exist_ok=True)
 
     app.config.update(
-        SECRET_KEY="minha_chave_super_secreta",  # TODO: puxar de .env
+        SECRET_KEY="minha_chave_super_secreta",
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{os.path.join(db_path, 'app.db')}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
@@ -47,19 +46,17 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
 
-    # --- Modelos e autenticação ---
-    
-
+    # User loader
     @login_manager.user_loader
     def load_user(user_id: str):
-        """Carrega o utilizador da sessão a partir do ID."""
-        return Usuario.query.get(int(user_id))
+        return User.query.get(int(user_id))
 
-    # --- Banco de dados ---
+    # Importar modelos aqui para garantir que db.create_all() funcione
     with app.app_context():
+        from src.models import CLP, CLPConfigRegistrador, HistoricoLeitura, User, Leitura
         db.create_all()
 
-    # --- Blueprints ---
+    # Blueprints
     from src.views.routes.main_routes import main as main_bp
     from src.views.routes.auth_routes import auth_bp
     from src.views.routes.api_routes import clp_api
