@@ -21,7 +21,7 @@ try:
 except Exception:
     CLPLog = None
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)   
 
 
 def _now() -> datetime:

@@ -1,4 +1,4 @@
-# src/models/leitura.py
+# src/models/Log.py
 from src.app import db
 from datetime import datetime
 

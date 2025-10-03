@@ -4,7 +4,7 @@ import sys
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from src.models import CLP, CLPConfigRegistrador, HistoricoLeitura, User, Leitura 
+from src.models import CLP, CLPConfigRegistrador, HistoricoLeitura, User, Leitura, Sensor
 # --- Extensões globais ---
 from src.db import db
 login_manager = LoginManager()
@@ -62,7 +62,7 @@ def create_app():
     from src.views.routes.api_routes import clp_api
     from src.views.routes.admin_routes import adm_bp
     from src.views.routes.clps_routes import clps_bp
-    from src.views.routes.coleta_routes import coleta_bp
+    from src.views.routes.coleta_routes import coleta as coleta_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
