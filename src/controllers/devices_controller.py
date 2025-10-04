@@ -11,4 +11,6 @@ try:
             return listar_devices() 
 
 except:
-    class
+    class DeviceController:
+        def __inti__():
+            pass

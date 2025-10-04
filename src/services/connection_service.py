@@ -30,9 +30,6 @@ def desconectar(clp : Dict[str|list[Any], Any]):
     else:
         clp["logs"].append("Adapter não disponível")
 
-
-
-
 def get_client(ip: str) -> Optional[ModbusTcpClient]:
     return _active_clients.get(ip)
 

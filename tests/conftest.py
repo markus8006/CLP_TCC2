@@ -1,46 +1,66 @@
 # tests/conftest.py
-
 import pytest
 from src.app import create_app, db
+
+# importe aqui todos os modelos que definem tabelas
 from src.models.Users import User, UserRole
+from src.models.CLP import CLP
+from src.models.Tag import Tag
+# ... importe quaisquer outros modelos do seu projeto
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="function")  # function-scoped garante DB limpo por teste
 def app():
-    """Cria e configura uma nova instância da aplicação para cada módulo de teste."""
-    app = create_app()
-    app.config.update({
+    """Cria uma app limpa por teste com DB em memória."""
+    config = {
         "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",  # Usa um banco de dados em memória para testes
-        "WTF_CSRF_ENABLED": False,  # Desabilita CSRF para facilitar os testes de formulário
+        # Passe a URI para create_app se sua factory aceitar um dict
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        "SQLALCHEMY_TRACK_MODIFICATIONS": False,
+        "WTF_CSRF_ENABLED": False,
         "LOGIN_DISABLED": False,
-    })
+    }
 
-    with app.app_context():
+    # Se a sua create_app aceita um dict: create_app(config)
+    try:
+        application = create_app(config)
+    except TypeError:
+        # fallback: cria sem args e atualiza config em seguida
+        application = create_app()
+        application.config.update(config)
+
+    # cria as tabelas dentro do contexto
+    with application.app_context():
+        # garante que todos os modelos foram importados (veja imports acima)
         db.create_all()
-        yield app
+
+    yield application
+
+    # teardown
+    with application.app_context():
+        db.session.remove()
         db.drop_all()
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope="function")
 def client(app):
-    """Um cliente de teste para a aplicação."""
+    """Cliente de teste isolado por teste."""
     return app.test_client()
 
-@pytest.fixture(scope='function')
+
+@pytest.fixture(scope="function")
 def runner(app):
-    """Um executor de comandos CLI para a aplicação."""
     return app.test_cli_runner()
 
-@pytest.fixture(scope='function')
+
+@pytest.fixture(scope="function")
 def new_user():
-    """Cria um novo usuário para os testes."""
-    user = User(username='testuser', role=UserRole.USER)
-    user.set_password('testpassword')
+    user = User(username="testuser", role=UserRole.USER)
+    user.set_password("testpassword")
     return user
 
-@pytest.fixture(scope='function')
-def new_admin():
-    """Cria um novo usuário administrador para os testes."""
-    admin = User(username='adminuser', role=UserRole.ADMIN)
-    admin.set_password('adminpassword')
-    return admin
 
+@pytest.fixture(scope="function")
+def new_admin():
+    admin = User(username="adminuser", role=UserRole.ADMIN)
+    admin.set_password("adminpassword")
+    return admin

@@ -20,7 +20,16 @@ def obter_clps_lista():
 @login_required
 def index():
     """Página principal do Dashboard, protegida por login."""
-    clps_lista = obter_clps_lista()
+    clps_lista = obter_clps_lista() or []
+
+    # --- Garantir que clps_lista é uma lista (evita KeyError ao fatiar) ---
+    if not isinstance(clps_lista, list):
+        try:
+            clps_lista = list(clps_lista)
+        except TypeError:
+            # Se for um único objeto ou algo inesperado, torne-o numa lista
+            clps_lista = [clps_lista]
+
     search_term = ""
     tag_term = ""
 

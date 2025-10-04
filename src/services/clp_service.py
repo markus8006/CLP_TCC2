@@ -87,3 +87,16 @@ def listar_clps_orm() -> List[CLP]:
 def buscar_clp_por_ip_orm(ip: str) -> Optional[CLP]:
     """Retorna o objeto CLP (ORM) pelo seu IP."""
     return CLP.query.filter_by(ip=ip).first()
+
+
+# def buscar_por_ip(ip):
+#     return buscar_clp_por_ip(ip)
+
+# def buscar_por_ip_dict(ip):
+#     return buscar_clp_por_ip(ip)
+
+# def atualizar_clp():
+#     return None
+
+# def criar_dispositivo(dados):
+#     return criar_clp(dados)

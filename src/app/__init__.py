@@ -5,6 +5,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from src.models import CLP, CLPConfigRegistrador, HistoricoLeitura, User, Leitura, Sensor
+import time
 # --- Extensões globais ---
 from src.db import db
 login_manager = LoginManager()
@@ -47,6 +48,7 @@ def create_app():
 
     # Inicializar extensões
     db.init_app(app)
+    time.sleep(1)
     login_manager.init_app(app)
 
     # User loader

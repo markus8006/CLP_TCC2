@@ -19,25 +19,23 @@ try:
 except Exception:
     Sensor = None
 
-# device_service (CRUD centralizado)
-from src.services.clp_service import (
-    buscar_por_ip,
-    buscar_por_ip_dict,
+from src.controllers.clp_controller import (
+    obter_por_ip,
     atualizar_clp,
+    listar,
+    assign_tag_to_clp,
+    remove_tag_from_clp,
+    get_historico_valores,
+    get_recent_logs,
 )
 
+
+
+
+
 # role_required pode estar em locais diferentes; tenta importar e cria fallback
-try:
-    from src.views.auth_routes import role_required
-except Exception:
-    try:
-        from src.decorators import role_required
-    except Exception:
-        # fallback - sem verificação (apenas para não quebrar durante testes)
-        def role_required(role):
-            def _decorator(f):
-                return f
-            return _decorator
+from src.utils.decorators.decorators import role_required
+
 
 # CLP log model opcional
 try:
@@ -152,12 +150,10 @@ def clp_values(ip):
 @clps_bp.route("/<ip>/status", methods=["GET"])
 @login_required
 def clp_status(ip):
-    """
-    Retorna o status do CLP. Usamos device_service.buscar_por_ip_dict para garantir compatibilidade.
-    """
-    clp_dict = buscar_por_ip_dict(ip)
-    status = clp_dict.get("status", "Offline") if clp_dict else "Offline"
+    clp = obter_por_ip(ip)
+    status = getattr(clp, "status", "Offline") if clp else "Offline"
     return jsonify(status=status), 200
+
 
 
 @clps_bp.route("/<ip>/tags/assign", methods=["POST"])
@@ -172,7 +168,7 @@ def assign_tag(ip):
     if not tag:
         return jsonify(success=False, message="Tag vazia"), 400
 
-    clp_obj = buscar_por_ip(ip)  # ORM object
+    clp_obj = obter_por_ip(ip)  # ORM object
     if not clp_obj:
         return jsonify(success=False, message="CLP não encontrado"), 404
 
@@ -203,7 +199,7 @@ def remove_tag(ip):
     if not tag:
         return jsonify(success=False, message="Tag vazia"), 400
 
-    clp_obj = buscar_por_ip(ip)
+    clp_obj = obter_por_ip(ip)
     if not clp_obj:   
         return jsonify(success=False, message="CLP não encontrado"), 404
 
@@ -231,7 +227,7 @@ def edit_name(ip):
     if not nome:
         return jsonify(success=False, message="Nome vazio"), 400
 
-    clp_obj = buscar_por_ip(ip)
+    clp_obj = obter_por_ip(ip)
     if not clp_obj:
         return jsonify(success=False, message="CLP não encontrado"), 404
 
