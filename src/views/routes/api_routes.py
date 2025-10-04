@@ -3,14 +3,13 @@ from flask import Blueprint, jsonify, request
 import logging
 from threading import Thread
 
-from src.services.clp_service import (
-    listar_clps_dict,
-    buscar_por_ip_dict,
-    buscar_por_ip,
-    atualizar_clp,
-    criar_dispositivo,
-)
-from src.models import CLP  # ORM
+from src.controllers.clp_controller import ClpController
+
+
+controller = ClpController
+      
+
+from src.models import CLP 
 from src.db import db
 
 clp_api = Blueprint("clp_api", __name__, url_prefix="/clp")
@@ -25,39 +24,39 @@ def _run_in_thread(target, *args, **kwargs):
 # -------------------------
 # Rotas de CLPs
 # -------------------------
-@clp_api.route("/", methods=["GET"])
-def get_clps():
-    """Lista todos os CLPs no banco como dicts."""
-    return jsonify({"success": True, "clps": listar_clps_dict()})
+# @clp_api.route("/", methods=["GET"])
+# def get_clps():
+#     """Lista todos os CLPs no banco como dicts."""
+#     return jsonify({"success": True, "clps": listar_clps_dict()})
 
 
 @clp_api.route("/<ip>", methods=["GET"])
 def get_clp(ip):
     """Retorna CLP específico por IP."""
-    clp = buscar_por_ip_dict(ip)
+    clp = controller.obter_por_ip(ip)
     if not clp:
         return jsonify({"success": False, "message": "CLP não encontrado"}), 404
     return jsonify({"success": True, "clp": clp})
 
 
-@clp_api.route("/<ip>/rename", methods=["POST"])
-def rename_clp(ip):
-    """Renomeia CLP usando ORM."""
-    data = request.get_json() or {}
-    novo_nome = (data.get("novo_nome") or "").strip()
-    if not novo_nome:
-        return jsonify({"success": False, "message": "novo_nome é obrigatório"}), 400
+# @clp_api.route("/<ip>/rename", methods=["POST"])
+# def rename_clp(ip):
+#     """Renomeia CLP usando ORM."""
+#     data = request.get_json() or {}
+#     novo_nome = (data.get("novo_nome") or "").strip()
+#     if not novo_nome:
+#         return jsonify({"success": False, "message": "novo_nome é obrigatório"}), 400
 
-    clp_obj = buscar_por_ip(ip)
-    if not clp_obj:
-        return jsonify({"success": False, "message": "CLP não encontrado"}), 404
+#     clp_obj = controller.obter_por_ip(ip)
+#     if not clp_obj:
+#         return jsonify({"success": False, "message": "CLP não encontrado"}), 404
 
-    try:
-        atualizar_clp(clp_obj, {"nome": novo_nome})
-        return jsonify({"success": True, "message": "Nome atualizado com sucesso"}), 200
-    except Exception as e:
-        logging.exception("Erro ao renomear CLP")
-        return jsonify({"success": False, "message": "Erro interno", "error": str(e)}), 500
+#     try:
+#         atualizar_clp(clp_obj, {"nome": novo_nome})
+#         return jsonify({"success": True, "message": "Nome atualizado com sucesso"}), 200
+#     except Exception as e:
+#         logging.exception("Erro ao renomear CLP")
+#         return jsonify({"success": False, "message": "Erro interno", "error": str(e)}), 500
 
 
 # -------------------------
@@ -71,7 +70,7 @@ def add_tag(ip):
     if not tag:
         return jsonify({"success": False, "message": "Tag vazia"}), 400
 
-    clp_obj = buscar_por_ip(ip)
+    clp_obj = controller.obter_por_ip(ip)
     if not clp_obj:
         return jsonify({"success": False, "message": "CLP não encontrado"}), 404
 
@@ -83,7 +82,7 @@ def add_tag(ip):
 
     tags.append(tag)
     metadata["tags"] = tags
-    atualizar_clp(clp_obj, {"metadata": metadata})
+    # atualizar_clp(clp_obj, {"metadata": metadata})
 
     return jsonify({"success": True, "message": "Tag adicionada", "tags": tags}), 200
 
@@ -91,7 +90,7 @@ def add_tag(ip):
 @clp_api.route("/<ip>/tags/<tag>", methods=["DELETE"])
 def remove_tag(ip, tag):
     """Remove tag de CLP."""
-    clp_obj = buscar_por_ip(ip)
+    clp_obj = controller.obter_por_ip(ip)
     if not clp_obj:
         return jsonify({"success": False, "message": "CLP não encontrado"}), 404
 
@@ -102,6 +101,6 @@ def remove_tag(ip, tag):
 
     tags.remove(tag)
     metadata["tags"] = tags
-    atualizar_clp(clp_obj, {"metadata": metadata})
+    # atualizar_clp(clp_obj, {"metadata": metadata})
 
     return jsonify({"success": True, "message": "Tag removida", "tags": tags}), 200

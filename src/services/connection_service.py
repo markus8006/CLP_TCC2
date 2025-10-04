@@ -37,8 +37,8 @@ def get_client(ip: str) -> Optional[ModbusTcpClient]:
     return _active_clients.get(ip)
 
 # função de log reutilizável (pode estar também em outro módulo util)
-def adicionar_log(clp: Dict[str, List[Any]|Any], texto: str) -> None:
-    if "logs" not in clp:
-        clp["logs"] = []
+# def adicionar_log(clp: Dict[str, List[Any]|Any], texto: str) -> None:
+#     if "logs" not in clp:
+#         clp["logs"] = []
     
-    clp["logs"].append(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {texto}")
+#     clp["logs"].append(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {texto}")
