@@ -4,7 +4,7 @@ import time
 from src.app import create_app
 from src.services.polling_service import polling_service
 from src.utils.log.log import setup_logger
-from pymodbus.server import StartTcpServer
+
 
 
 logger = setup_logger()

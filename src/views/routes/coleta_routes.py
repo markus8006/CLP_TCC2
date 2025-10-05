@@ -4,8 +4,7 @@ import json
 import os
 import logging
 import ipaddress
-from datetime import datetime
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 from flask import (
     Blueprint, current_app, jsonify, Response, render_template, 
@@ -16,9 +15,11 @@ from flask_login import login_required
 from src.utils.decorators.decorators import role_required
 from src.utils.network.discovery import discovery_background_once, logger as discovery_logger
 from src.utils.root.paths import DISCOVERY_FILE
-from src.services.clp_service import CLPService # Refatorado para usar o novo serviço
+from src.services.clp_service import CLPService
 
-# Blueprint
+# (O resto do código de gerenciamento da thread permanece o mesmo)
+# ...
+
 coleta = Blueprint("coleta", __name__, url_prefix="/coleta")
 
 # ---- Gerenciamento da Thread de Descoberta (Lógica de Controle da Rota) ----
@@ -150,7 +151,7 @@ def coleta_ips_results():
         current_app.logger.error(f"Erro ao ler arquivo de resultados: {e}")
         return "Erro ao ler resultados", 500
 
-
+# Rota Manual Corrigida
 @coleta.route("/manual", methods=["GET", "POST"])
 @login_required
 @role_required("admin")
@@ -168,8 +169,10 @@ def coleta_manual():
             flash("Endereço IP inválido.", "danger")
             return redirect(url_for("coleta.coleta_manual"))
 
+        # CORREÇÃO: Converter portas para uma lista de inteiros
+        portas_str = request.form.get("portas", "")
         portas_list = [
-            int(p.strip()) for p in request.form.get("portas", "").split(",") if p.strip().isdigit()
+            int(p.strip()) for p in portas_str.split(",") if p.strip().isdigit()
         ]
 
         # Monta o dicionário de dados
@@ -178,7 +181,7 @@ def coleta_manual():
             "nome": nome,
             "mac": request.form.get("mac", "").strip(),
             "subnet": request.form.get("subnet", "").strip(),
-            "portas": ",".join(map(str, portas_list)), # O modelo espera uma string
+            "portas": portas_list,  # AQUI ESTÁ A MUDANÇA PRINCIPAL
             "tipo": "CLP",
             "ativo": True,
             "manual": True,
@@ -189,6 +192,7 @@ def coleta_manual():
             CLPService.criar_ou_atualizar_clp(dados_clp)
             flash(f"CLP {ip} foi salvo com sucesso!", "success")
         except Exception as e:
+            current_app.logger.error(f"ERRO AO SALVAR CLP MANUAL: {e}")
             flash(f"Ocorreu um erro ao salvar o CLP: {e}", "danger")
 
         return redirect(url_for("coleta.coleta_manual"))

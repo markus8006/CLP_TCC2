@@ -3,6 +3,7 @@ import logging
 from typing import Optional, Dict, Any, List
 
 from src.repositories.clp_repository import CLPRepository
+from src.models.CLP import CLP # Importar o modelo para type hinting
 
 logger = logging.getLogger(__name__)
 
@@ -43,15 +44,16 @@ class CLPService:
         if not clp_orm:
             return None
         
-        metadata = clp_orm.metadata or {}
-        tags = set(metadata.get("tags", []))
+        # CORREÇÃO: Usar 'info' no lugar de 'metadata'
+        info_data = clp_orm.info or {}
+        tags = set(info_data.get("tags", []))
         if tag in tags:
-            return sorted(list(tags)) # Retorna a lista atual se a tag já existe
+            return sorted(list(tags)) 
             
         tags.add(tag)
-        metadata["tags"] = sorted(list(tags))
-        CLPRepository.update(clp_orm, {"metadata": metadata})
-        return metadata["tags"]
+        info_data["tags"] = sorted(list(tags))
+        CLPRepository.update(clp_orm, {"info": info_data})
+        return info_data["tags"]
 
     @staticmethod
     def remover_tag(ip: str, tag: str) -> Optional[List[str]]:
@@ -60,27 +62,31 @@ class CLPService:
         if not clp_orm:
             return None
             
-        metadata = clp_orm.metadata or {}
-        tags = set(metadata.get("tags", []))
+        info_data = clp_orm.info or {}
+        tags = set(info_data.get("tags", []))
         if tag not in tags:
-            return None # Tag não encontrada
+            return None
 
         tags.remove(tag)
-        metadata["tags"] = sorted(list(tags))
-        CLPRepository.update(clp_orm, {"metadata": metadata})
-        return metadata["tags"]
+        info_data["tags"] = sorted(list(tags))
+        CLPRepository.update(clp_orm, {"info": info_data})
+        return info_data["tags"]
 
     @staticmethod
-    def _serialize_clp(clp: 'CLP') -> Dict[str, Any]:
+    def _serialize_clp(clp: CLP) -> Dict[str, Any]:
         """Converte um objeto CLP ORM para um dicionário."""
+        # CORREÇÃO: Adicionar mais campos para a UI
         return {
             "id": clp.id,
             "nome": clp.nome,
             "ip": clp.ip,
+            "mac": clp.mac,
+            "subnet": clp.subnet,
             "porta": clp.porta,
             "modelo": clp.modelo,
             "descricao": clp.descricao,
             "ativo": clp.ativo,
-            "tags": (clp.metadata or {}).get("tags", []),
-            # Adicione outros campos conforme necessário
+            "manual": clp.manual,
+            "portas": clp.portas or [], # Garantir que seja uma lista
+            "tags": (clp.info or {}).get("tags", []),
         }

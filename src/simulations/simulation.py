@@ -1,5 +1,11 @@
 from pymodbus.datastore import ModbusDeviceContext, ModbusServerContext, ModbusSequentialDataBlock
 from pymodbus.pdu.device import ModbusDeviceIdentification
+from pymodbus.server import StartTcpServer
+from src.utils.log.log import setup_logger
+
+
+
+logger = setup_logger()
 
 
 def start_modbus_simulator(host="127.0.0.1", port=5020):

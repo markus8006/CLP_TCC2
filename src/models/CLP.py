@@ -8,18 +8,21 @@ class CLP(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
     ip = db.Column(db.String(50), nullable=False, unique=True)
+    mac = db.Column(db.String(17)) # Adicionado
     porta = db.Column(db.Integer, default=502)
     modelo = db.Column(db.String(50))
     descricao = db.Column(db.Text)
     ativo = db.Column(db.Boolean, default=True)
     
-    # --- Campos que estavam em falta ---
+    # --- Campos Corrigidos e Adicionados ---
     protocolo = db.Column(db.String(50), default="modbus")
     grupo = db.Column(db.String(100), default="Sem Grupo")
     subnet = db.Column(db.String(50))
-    portas = db.Column(JSON, default=list)
-    info = db.Column(JSON, default=dict)
+    portas = db.Column(JSON, default=list) # Garante que o padrão é uma lista
+    info = db.Column(JSON, default=dict) # Usado para metadata
     status = db.Column(db.String(50), default="Offline")
+    tipo = db.Column(db.String(50), default="CLP") # Adicionado
+    manual = db.Column(db.Boolean, default=False) # Adicionado
     data_registro = db.Column(db.DateTime, default=datetime.utcnow)
 
     configs = db.relationship("CLPConfigRegistrador", back_populates="clp", cascade="all, delete-orphan")
@@ -51,4 +54,4 @@ class HistoricoLeitura(db.Model):
     valor = db.Column(db.Float, nullable=False)
 
     clp = db.relationship("CLP")
-    config = db.relationship("CLPConfigRegistrador")
+    config = db.relationship("CLPConfigRegistrador") 

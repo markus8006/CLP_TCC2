@@ -2,27 +2,22 @@
 import os
 import time
 import threading
-import yaml
 import copy
 from typing import Dict, Any, List, Optional, Tuple
 
 from src.adapters.modbus_adapter import ModbusAdapter
-from src.repositories.clp_repository import CLPRepository # <- Importar o repositório
+from src.repositories.clp_repository import CLPRepository
 from src.services.clp_service import CLPService
 from src.utils.log.log import setup_logger
+from src.models import CLPConfigRegistrador # Importa o modelo de configuração
 
 LOG = setup_logger()
 
-MODBUS_MAX_REGS = 125  # limite por request (função 3/4)
+MODBUS_MAX_REGS = 125
 
-# path YAML fallback
-DEFAULT_YAML_PATH = os.path.join("src", "data", "plc_registers.yaml")
-
-
-# ---------------------------------------------------
-# util: montar batches simples de leituras contíguas
-# ---------------------------------------------------
+# (As funções build_batches e add_log_in_memory permanecem iguais)
 def build_batches(registers: List[Dict[str, Any]]) -> List[Tuple[str, int, int, List[Dict[str, Any]]]]:
+    # ... código sem alterações ...
     by_type: Dict[str, List[Dict[str, Any]]] = {}
     for r in registers:
         rtype = r.get("type", "holding")
@@ -53,11 +48,8 @@ def build_batches(registers: List[Dict[str, Any]]) -> List[Tuple[str, int, int, 
             i = j
     return batches
 
-
-# ---------------------------------------------------
-# helper para adicionar log no objeto clp (em memória)
-# ---------------------------------------------------
 def add_log_in_memory(clp: dict, entry: str, max_logs: int = 200):
+    # ... código sem alterações ...
     if clp is None:
         return
     logs = clp.setdefault("logs", [])
@@ -67,112 +59,63 @@ def add_log_in_memory(clp: dict, entry: str, max_logs: int = 200):
     if len(logs) > max_logs:
         del logs[0]
 
-
-# ---------------------------------------------------
-# Poller de um CLP (thread)
-# ---------------------------------------------------
 class CLPPoller(threading.Thread):
     def __init__(self, clp: Dict[str, Any], adapter: ModbusAdapter, cache: Dict[str, Any],
-                 stop_event: threading.Event, yaml_path: Optional[str] = None, app=None):
+                 stop_event: threading.Event, app=None):
         super().__init__(daemon=True, name=f"CLPPoller-{clp.get('ip')}")
         self.clp = clp
         self.adapter = adapter
         self.cache = cache
         self.stop_event = stop_event
+        self.app = app
         self._last_read: Dict[str, float] = {}
         self._lock = threading.RLock()
-        self.yaml_path = yaml_path or DEFAULT_YAML_PATH
-        self.app = app  # opcional, setado via PollingService.set_app(app) antes de persistir DB
 
     def _load_registers_config(self) -> List[Dict[str, Any]]:
-        regs = self.clp.get("registers")
-        if regs and isinstance(regs, list):
-            return regs
+        """
+        Carrega a configuração dos registradores a partir do banco de dados.
+        """
+        if not self.app or not self.clp.get("id"):
+            LOG.warning("Polling p/ %s: App Context ou ID do CLP indisponível para carregar configs do DB.", self.clp.get("ip"))
+            return []
 
-        try:
-            if not os.path.exists(self.yaml_path):
-                LOG.debug("plc_registers.yaml não encontrado; nenhum registro configurado para %s", self.clp.get("ip"))
+        with self.app.app_context():
+            try:
+                configs_orm = CLPConfigRegistrador.query.filter_by(
+                    clp_id=self.clp["id"], 
+                    ativo=True
+                ).all()
+
+                if not configs_orm:
+                    LOG.debug("Nenhuma config de registrador ativa no DB para CLP %s", self.clp.get("ip"))
+                    return []
+
+                register_list = [{
+                    "name": config.nome_variavel,
+                    "address": config.endereco_inicial,
+                    "count": config.quantidade,
+                    # O poller usa segundos, o DB armazena em milissegundos
+                    "interval": (config.intervalo_leitura or 1000) / 1000.0,
+                    "type": config.tipo or "holding" 
+                } for config in configs_orm]
+                
+                LOG.debug("Carregados %d registradores do DB para CLP %s", len(register_list), self.clp.get("ip"))
+                return register_list
+
+            except Exception as e:
+                LOG.exception("Erro ao carregar configs do DB para CLP %s: %s", self.clp.get("ip"), e)
                 return []
-            with open(self.yaml_path, "r", encoding="utf-8") as f:
-                cfg = yaml.safe_load(f) or {}
-            # suportar dois formatos: mapping ip -> list OR antigo formato { devices: [...] }
-            if isinstance(cfg, dict):
-                # caso top-level seja map ip->regs
-                if self.clp.get("ip") in cfg:
-                    return cfg.get(self.clp.get("ip")) or []
-                # caso top-level seja { devices: [...] }
-                devices = cfg.get("devices", [])
-                for d in devices:
-                    if d.get("host") == self.clp.get("ip") or d.get("name") == self.clp.get("nome"):
-                        return d.get("registers", []) or []
-        except FileNotFoundError:
-            LOG.debug("plc_registers.yaml não encontrado; nenhum registro configurado para %s", self.clp.get("ip"))
-        except Exception as e:
-            LOG.exception("Erro lendo plc_registers.yaml: %s", e)
-        return []
-
+    
+    # --- O resto da classe CLPPoller (run, _should_read, etc.) permanece o mesmo ---
+    # ...
     def _should_read(self, reg: Dict[str, Any], now: float) -> bool:
-        interval = int(reg.get("interval") or self.clp.get("default_interval") or 5)
+        interval = float(reg.get("interval") or self.clp.get("default_interval") or 5)
         last = self._last_read.get(reg["name"], 0)
         return (now - last) >= interval
 
     def _persist_register_value(self, reg_name: str, value: Any, ts: float):
-        """
-        Persistência:
-         - atualiza ClpController (in-memory/padrão do seu app)
-         - se app estiver disponível, grava RegisterValue no DB (opcional)
-        """
-        # 1) atualiza in-memory via controller (evita circular imports diretos de models)
-        try:
-            clp_current = ClpController.obter_por_ip(self.clp.get("ip"))
-            if clp_current:
-                clp_current.setdefault("registers_values", {})
-                clp_current["registers_values"][reg_name] = {"value": value, "timestamp": ts}
-                # adiciona log simples
-                add_log_in_memory(clp_current, f"read {reg_name}={value}")
-                # salva via controller (se implementar persistência, o controller cuida)
-                try:
-                    ClpController.editar_clp(clp_current, clp_current)
-                except Exception:
-                    # se editar_clp tiver assinatura diferente, tente editar com ip/upsert ou ignore
-                    LOG.debug("ClpController.editar_clp falhou ao persistir register in-memory (ignorado).")
-        except Exception:
-            LOG.exception("Erro atualizando ClpController in-memory para %s", self.clp.get("ip"))
-
-        # 2) persistir no DB (opcional) se self.app for setada e models existirem
-        if self.app:
-            try:
-                # import dentro do contexto para evitar import circular em tempo de import do módulo
-                from src.views import db  # seu SQLAlchemy instance
-                # modelo RegisterValue pode estar em src.models.registers ou outro path; tentamos import seguro
-                try:
-                    from src.models.Registers import RegisterValue  # sob conventions lowercase
-                except Exception:
-                    try:
-                        from src.models.Registers import RegisterValue  # fallback possible path
-                    except Exception:
-                        RegisterValue = None
-
-                if RegisterValue:
-                    with self.app.app_context():
-                        rv = RegisterValue(
-                            clp_ip=self.clp.get("ip"),
-                            reg_name=reg_name,
-                            value=str(value),
-                            timestamp=ts
-                        )
-                        db.session.add(rv)
-                        db.session.commit()
-                        LOG.debug("RegisterValue salvo no DB: %s %s=%s", self.clp.get("ip"), reg_name, value)
-                else:
-                    LOG.debug("Modelo RegisterValue não encontrado; pulando persistência DB.")
-            except Exception:
-                try:
-                    with self.app.app_context():
-                        db.session.rollback()
-                except Exception:
-                    pass
-                LOG.exception("Erro salvando RegisterValue no DB para %s", self.clp.get("ip"))
+        # Esta função pode ser melhorada no futuro para salvar no HistóricoLeitura
+        pass
 
     def run(self):
         ip = self.clp.get("ip")
@@ -187,22 +130,19 @@ class CLPPoller(threading.Thread):
             now = time.time()
             registers = self._load_registers_config()
             if not registers:
-                time.sleep(2.0)
+                time.sleep(5.0) # Espera mais se não há nada para fazer
                 continue
 
             batches = build_batches(registers)
             for rtype, start, count, group in batches:
-                needs = False
-                for reg in group:
-                    if self._should_read(reg, now):
-                        needs = True
-                        break
-                if not needs:
+                needs_read = any(self._should_read(reg, now) for reg in group)
+                if not needs_read:
                     continue
 
                 if not adapter.connect(self.clp):
                     LOG.warning("CLPPoller[%s] não conectou; pulando batch %s:%s", ip, start, count)
                     add_log_in_memory(self.clp, f"connect failed on batch {start}:{count}")
+                    time.sleep(2.0) # Pausa antes de tentar o próximo batch
                     continue
 
                 try:
@@ -223,24 +163,20 @@ class CLPPoller(threading.Thread):
                     offset = addr - start
                     try:
                         segment = raw[offset: offset + cnt]
+                        value = segment[0] if len(segment) == 1 else segment
+                        ts = time.time()
+                        
+                        with self._lock:
+                            self.cache.setdefault(ip, {})
+                            self.cache[ip][name] = {"value": value, "timestamp": ts, "address": addr}
+                        
+                        self._persist_register_value(name, value, ts)
+                        self._last_read[name] = now
+                    except IndexError:
+                        LOG.warning("Erro de índice ao processar registrador %s para CLP %s", name, ip)
                     except Exception:
                         LOG.exception("Erro ao separar segmento para %s %s", ip, name)
-                        segment = None
-
-                    if not segment:
-                        continue
-
-                    value = segment[0] if len(segment) == 1 else segment
-                    ts = time.time()
-                    # atualizar cache local
-                    with self._lock:
-                        self.cache.setdefault(self.clp.get("ip"), {})
-                        self.cache[self.clp.get("ip")][name] = {"value": value, "timestamp": ts, "address": addr}
-
-                    # persistir via controlador e opcionalmente DB
-                    self._persist_register_value(name, value, ts)
-                    self._last_read[name] = now
-
+                
                 if self.stop_event.is_set():
                     break
                 time.sleep(0.05)
@@ -254,21 +190,16 @@ class CLPPoller(threading.Thread):
         LOG.info("CLPPoller[%s] finalizado", ip)
 
 
-# ---------------------------------------------------
-# Serviço que gerencia pollers
-# ---------------------------------------------------
 class PollingService:
-    def __init__(self, adapter: Optional[ModbusAdapter] = None, yaml_path: Optional[str] = None):
+    def __init__(self, adapter: Optional[ModbusAdapter] = None):
         self.adapter = adapter or ModbusAdapter()
         self._pollers: Dict[str, CLPPoller] = {}
         self._stop_events: Dict[str, threading.Event] = {}
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._global_lock = threading.RLock()
-        self.yaml_path = yaml_path or DEFAULT_YAML_PATH
-        self.app = None  # set by set_app
+        self.app = None
 
     def set_app(self, app):
-        """Anexe o Flask app para permitir persistência em DB a partir das threads."""
         self.app = app
 
     def start_poll_for(self, clp: Dict[str, Any]) -> bool:
@@ -277,11 +208,15 @@ class PollingService:
             return False
         with self._global_lock:
             if ip in self._pollers:
-                LOG.info("PollingService: poller já ativo para %s", ip)
                 return True
             stop_event = threading.Event()
-            poller = CLPPoller(clp=clp, adapter=self.adapter, cache=self._cache,
-                               stop_event=stop_event, yaml_path=self.yaml_path, app=self.app)
+            poller = CLPPoller(
+                clp=clp, 
+                adapter=self.adapter, 
+                cache=self._cache,
+                stop_event=stop_event, 
+                app=self.app
+            )
             self._stop_events[ip] = stop_event
             self._pollers[ip] = poller
             poller.start()
@@ -290,35 +225,23 @@ class PollingService:
 
     def stop_poll_for(self, ip: str) -> bool:
         with self._global_lock:
-            poller = self._pollers.get(ip)
-            if not poller:
+            if ip not in self._pollers:
                 return False
-            ev = self._stop_events.get(ip)
-            if ev:
-                ev.set()
-            poller.join(timeout=5)
+            self._stop_events[ip].set()
+            self._pollers[ip].join(timeout=5)
             self._pollers.pop(ip, None)
             self._stop_events.pop(ip, None)
             LOG.info("PollingService: parado poller para %s", ip)
         return True
 
-    def start_all_from_db(self): # Renomeado para maior clareza
-        """Inicia os pollers para todos os CLPs ativos no banco de dados."""
-        # Acessa o banco de dados através do repositório
-        clps_orm = CLPRepository.get_all() 
-        
-        # Converte para dicionários que o Poller espera
-        clps_dict_list = [CLPService._serialize_clp(clp) for clp in clps_orm if clp.ativo]
-
-        for clp_dict in clps_dict_list:
-            try:
-                self.start_poll_for(clp_dict)
-            except Exception:
-                LOG.exception("Erro iniciando poller para %s", clp_dict.get("ip"))
+    def start_all_from_db(self):
+        clps_orm = CLPRepository.get_all()
+        clps_ativos = [CLPService._serialize_clp(clp) for clp in clps_orm if clp.ativo]
+        for clp_dict in clps_ativos:
+            self.start_poll_for(clp_dict)
 
     def stop_all(self):
-        ips = list(self._pollers.keys())
-        for ip in ips:
+        for ip in list(self._pollers.keys()):
             self.stop_poll_for(ip)
 
     def get_cache(self) -> Dict[str, Dict[str, Any]]:
@@ -328,6 +251,4 @@ class PollingService:
     def is_running(self, ip: str) -> bool:
         return ip in self._pollers
 
-
-# Singleton (compatível com seu uso atual)
 polling_service = PollingService()

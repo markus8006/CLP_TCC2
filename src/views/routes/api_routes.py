@@ -1,5 +1,5 @@
 # src/views/api_routes.py
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 import logging
 from threading import Thread
 
@@ -38,7 +38,7 @@ def get_clp(ip):
     clp = service.buscar_clp_por_ip(ip)
     if not clp:
         return jsonify({"success": False, "message": "CLP não encontrado"}), 404
-    return jsonify({"success": True, "clp": clp})
+    return render_template("layouts/detalhes.html", clp=clp)
 
 
 # @clp_api.route("/<ip>/rename", methods=["POST"])

@@ -65,8 +65,8 @@
                 <button id="cancelNameBtn" class="btn btn-secondary">Cancelar</button>
             </div>
         </li>
-        <li><strong>Modelo:</strong> {{ clp.metadata.get('modelo', 'Desconhecido') }}</li>
-        <li><strong>Fabricante:</strong> {{ clp.metadata.get('fabricante', 'Desconhecido') }}</li>
+        <li><strong>Modelo:</strong> {{ clp.get('modelo', 'Desconhecido') }}</li>
+        <li><strong>Fabricante:</strong> {{ clp.get('fabricante', 'Desconhecido') }}</li>
         <li><strong>IP:</strong> <span id="clpIp">{{ clp.ip }}</span></li>
         <li><strong>Tags Associadas:</strong>
             <ul class="tag-list" id="tag-list-container">
@@ -91,7 +91,7 @@
         {% else %}
             <li><span class="porta_fechada">Não há portas abertas</span></li>
         {% endif %}
-        <li><strong>Versão Firmware:</strong> {{ clp.metadata.get('versao_firmware', 'N/A') }}</li>
+        <li><strong>Versão Firmware:</strong> {{ clp.get('versao_firmware', 'N/A') }}</li>
         <li><strong>Data de Registro:</strong> {{ clp.data_registro }}</li>
     </ul>
 </div>
