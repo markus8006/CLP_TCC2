@@ -3,10 +3,12 @@ from flask import Blueprint, jsonify, request
 import logging
 from threading import Thread
 
-from src.controllers.clp_controller import ClpController
+from src.services.clp_service import CLPService
+
+service = CLPService
 
 
-controller = ClpController
+
       
 
 from src.models import CLP 
@@ -33,7 +35,7 @@ def _run_in_thread(target, *args, **kwargs):
 @clp_api.route("/<ip>", methods=["GET"])
 def get_clp(ip):
     """Retorna CLP específico por IP."""
-    clp = controller.obter_por_ip(ip)
+    clp = service.buscar_clp_por_ip(ip)
     if not clp:
         return jsonify({"success": False, "message": "CLP não encontrado"}), 404
     return jsonify({"success": True, "clp": clp})
@@ -47,7 +49,7 @@ def get_clp(ip):
 #     if not novo_nome:
 #         return jsonify({"success": False, "message": "novo_nome é obrigatório"}), 400
 
-#     clp_obj = controller.obter_por_ip(ip)
+#     clp_obj = service.buscar_clp_por_ip(ip)
 #     if not clp_obj:
 #         return jsonify({"success": False, "message": "CLP não encontrado"}), 404
 
@@ -70,7 +72,7 @@ def add_tag(ip):
     if not tag:
         return jsonify({"success": False, "message": "Tag vazia"}), 400
 
-    clp_obj = controller.obter_por_ip(ip)
+    clp_obj = service.buscar_clp_por_ip(ip)
     if not clp_obj:
         return jsonify({"success": False, "message": "CLP não encontrado"}), 404
 
@@ -90,7 +92,7 @@ def add_tag(ip):
 @clp_api.route("/<ip>/tags/<tag>", methods=["DELETE"])
 def remove_tag(ip, tag):
     """Remove tag de CLP."""
-    clp_obj = controller.obter_por_ip(ip)
+    clp_obj = service.buscar_clp_por_ip(ip)
     if not clp_obj:
         return jsonify({"success": False, "message": "CLP não encontrado"}), 404
 

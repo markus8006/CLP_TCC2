@@ -7,7 +7,8 @@ import copy
 from typing import Dict, Any, List, Optional, Tuple
 
 from src.adapters.modbus_adapter import ModbusAdapter
-from src.controllers.clp_controller import ClpController
+from src.repositories.clp_repository import CLPRepository # <- Importar o repositório
+from src.services.clp_service import CLPService
 from src.utils.log.log import setup_logger
 
 LOG = setup_logger()
@@ -301,13 +302,19 @@ class PollingService:
             LOG.info("PollingService: parado poller para %s", ip)
         return True
 
-    def start_all_from_controller(self):
-        clps = ClpController.listar() or []
-        for clp in clps:
+    def start_all_from_db(self): # Renomeado para maior clareza
+        """Inicia os pollers para todos os CLPs ativos no banco de dados."""
+        # Acessa o banco de dados através do repositório
+        clps_orm = CLPRepository.get_all() 
+        
+        # Converte para dicionários que o Poller espera
+        clps_dict_list = [CLPService._serialize_clp(clp) for clp in clps_orm if clp.ativo]
+
+        for clp_dict in clps_dict_list:
             try:
-                self.start_poll_for(clp)
+                self.start_poll_for(clp_dict)
             except Exception:
-                LOG.exception("Erro iniciando poller para %s", clp.get("ip"))
+                LOG.exception("Erro iniciando poller para %s", clp_dict.get("ip"))
 
     def stop_all(self):
         ips = list(self._pollers.keys())

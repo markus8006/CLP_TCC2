@@ -25,7 +25,8 @@ def main():
     # 3) Chame start_all_from_controller() DENTRO do app context
     with app.app_context():
         try:
-            polling_service.start_all_from_controller()
+            # A chamada foi renomeada para refletir a nova lógica
+            polling_service.start_all_from_db()
             logger.info("PollingService: pollers iniciados a partir do banco")
         except Exception as e:
             logger.exception("Erro ao iniciar pollers: %s", e)
