@@ -1,9 +1,13 @@
 # src/views/routes/main_routes.py
 from flask import Blueprint, render_template, request
 from flask_login import login_required
-from src.services.clp_service import CLPService # <- MUDANÇA AQUI
+# Garanta que o nome do arquivo importado esteja correto
+from src.services.plc_service import CLPService
 
 main = Blueprint('main', __name__)
+
+# REMOVA a criação da instância daqui
+# DE: service = CLPService()
 
 clps_por_pagina = 21
 
@@ -11,37 +15,29 @@ clps_por_pagina = 21
 @login_required
 def index():
     """Página principal do Dashboard, protegida por login."""
-    # Usa o novo serviço para buscar os dados já formatados
-    clps_lista = CLPService.buscar_todos_clps()
+    
+    # PARA: Chame o método diretamente da CLASSE.
+    # Isso garante que você use a versão @staticmethod que retorna DICIONÁRIOS.
+    clps_lista = CLPService().buscar_todos_clps()
 
-    # ... (o resto da sua lógica de busca e paginação continua igual)
-    # ...
-    search_term = ""
-    tag_term = ""
-
-    if request.method == 'POST':
-        search_term = request.form.get("buscar_clp", "").lower()
-        tag_term = request.form.get("buscar_tag", "").lower()
-
-        if search_term:
-            clps_lista = [
-                clp for clp in clps_lista
-                if search_term in (clp.get('nome') or '').lower()
-            ]
-
-        if tag_term:
-            clps_lista = [
-                clp for clp in clps_lista
-                if any(tag_term in tag.lower() for tag in clp.get('tags', []))
-            ]
-
-    # paginação
-    page = request.args.get('page', 1, type=int) or 1
+    # O resto do seu código agora funcionará sem erros,
+    # pois `clps_lista` será uma lista de dicionários.
+    search_term = request.form.get("buscar_clp", "").lower()
+    if search_term:
+        clps_lista = [
+            clp for clp in clps_lista
+            if search_term in (clp.get('nome') or '').lower()
+        ]
+    
+    # ... O resto da função continua igual ...
+    page = request.args.get('page', 1, type=int)
     inicio = (page - 1) * clps_por_pagina
     fim = inicio + clps_por_pagina
     clps_pagina = clps_lista[inicio:fim]
-    total_paginas = (len(clps_lista) + clps_por_pagina - 1) // clps_por_pagina
+    total_paginas = max(1, (len(clps_lista) + clps_por_pagina - 1) // clps_por_pagina)
 
+
+    tag_term = []
 
     return render_template(
         'layouts/index.html',

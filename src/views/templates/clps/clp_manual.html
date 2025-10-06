@@ -63,22 +63,22 @@
         <tbody>
             {% for d in clps %}
             <tr>
-                <td>{{ d.get('nome') or '-' }}</td>
-                <td>{{ d.get('ip') }}</td>
-                <td>{{ d.get('mac') or '-' }}</td>
-                <td>{{ d.get('subnet') or '-' }}</td>
+                <td>{{ d.name or '-' }}</td>
+                <td>{{ d.ip }}</td>
+                <td>{{ d.mac or '-' }}</td>
+                <td>{{ d.subnet or '-' }}</td>
                 <td>
                     {# --- CORREÇÃO APLICADA AQUI --- #}
                     {# Itera sobre a lista de portas e exibe cada uma. #}
-                    {% if d.get('portas') %}
-                    {% for port in d.get('portas', []) %}
+                    {% if d.portas %}
+                    {% for port in d.portas %}
                     <span class="badge bg-info text-dark">{{ port }}</span>
                     {% endfor %}
                     {% else %}
                     -
                     {% endif %}
                 </td>
-                <td>{{ '✅' if d.get('manual') else '—' }}</td>
+                <td>{{ '✅' if d.manual else '—' }}</td>
             </tr>
             {% endfor %}
         </tbody>

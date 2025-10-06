@@ -1,254 +1,140 @@
-# src/services/polling_service.py
-import os
-import time
-import threading
-import copy
-from typing import Dict, Any, List, Optional, Tuple
-
+import asyncio
+from typing import Dict, List
+from sqlalchemy.orm import sessionmaker
+from src.models.PLC import PLC
+from src.models.Registers import Register
+from src.models.Reading import Reading
 from src.adapters.modbus_adapter import ModbusAdapter
-from src.repositories.clp_repository import CLPRepository
-from src.services.clp_service import CLPService
-from src.utils.log.log import setup_logger
-from src.models import CLPConfigRegistrador # Importa o modelo de configuração
+from src import db
+import logging
 
-LOG = setup_logger()
-
-MODBUS_MAX_REGS = 125
-
-# (As funções build_batches e add_log_in_memory permanecem iguais)
-def build_batches(registers: List[Dict[str, Any]]) -> List[Tuple[str, int, int, List[Dict[str, Any]]]]:
-    # ... código sem alterações ...
-    by_type: Dict[str, List[Dict[str, Any]]] = {}
-    for r in registers:
-        rtype = r.get("type", "holding")
-        by_type.setdefault(rtype, []).append(r)
-
-    batches: List[Tuple[str, int, int, List[Dict[str, Any]]]] = []
-    for rtype, regs in by_type.items():
-        regs_sorted = sorted(regs, key=lambda x: int(x["address"]))
-        i = 0
-        while i < len(regs_sorted):
-            start = int(regs_sorted[i]["address"])
-            end = start + int(regs_sorted[i].get("count", 1)) - 1
-            group = [regs_sorted[i]]
-            j = i + 1
-            while j < len(regs_sorted):
-                cand = regs_sorted[j]
-                cand_start = int(cand["address"])
-                cand_end = cand_start + int(cand.get("count", 1)) - 1
-                new_count = max(end, cand_end) - start + 1
-                if cand_start <= end + 1 and new_count <= MODBUS_MAX_REGS:
-                    end = max(end, cand_end)
-                    group.append(cand)
-                    j += 1
-                else:
-                    break
-            count = end - start + 1
-            batches.append((rtype, start, count, group))
-            i = j
-    return batches
-
-def add_log_in_memory(clp: dict, entry: str, max_logs: int = 200):
-    # ... código sem alterações ...
-    if clp is None:
-        return
-    logs = clp.setdefault("logs", [])
-    if logs and logs[-1] == entry:
-        return
-    logs.append(entry)
-    if len(logs) > max_logs:
-        del logs[0]
-
-class CLPPoller(threading.Thread):
-    def __init__(self, clp: Dict[str, Any], adapter: ModbusAdapter, cache: Dict[str, Any],
-                 stop_event: threading.Event, app=None):
-        super().__init__(daemon=True, name=f"CLPPoller-{clp.get('ip')}")
-        self.clp = clp
-        self.adapter = adapter
-        self.cache = cache
-        self.stop_event = stop_event
-        self.app = app
-        self._last_read: Dict[str, float] = {}
-        self._lock = threading.RLock()
-
-    def _load_registers_config(self) -> List[Dict[str, Any]]:
-        """
-        Carrega a configuração dos registradores a partir do banco de dados.
-        """
-        if not self.app or not self.clp.get("id"):
-            LOG.warning("Polling p/ %s: App Context ou ID do CLP indisponível para carregar configs do DB.", self.clp.get("ip"))
-            return []
-
-        with self.app.app_context():
-            try:
-                configs_orm = CLPConfigRegistrador.query.filter_by(
-                    clp_id=self.clp["id"], 
-                    ativo=True
-                ).all()
-
-                if not configs_orm:
-                    LOG.debug("Nenhuma config de registrador ativa no DB para CLP %s", self.clp.get("ip"))
-                    return []
-
-                register_list = [{
-                    "name": config.nome_variavel,
-                    "address": config.endereco_inicial,
-                    "count": config.quantidade,
-                    # O poller usa segundos, o DB armazena em milissegundos
-                    "interval": (config.intervalo_leitura or 1000) / 1000.0,
-                    "type": config.tipo or "holding" 
-                } for config in configs_orm]
-                
-                LOG.debug("Carregados %d registradores do DB para CLP %s", len(register_list), self.clp.get("ip"))
-                return register_list
-
-            except Exception as e:
-                LOG.exception("Erro ao carregar configs do DB para CLP %s: %s", self.clp.get("ip"), e)
-                return []
-    
-    # --- O resto da classe CLPPoller (run, _should_read, etc.) permanece o mesmo ---
-    # ...
-    def _should_read(self, reg: Dict[str, Any], now: float) -> bool:
-        interval = float(reg.get("interval") or self.clp.get("default_interval") or 5)
-        last = self._last_read.get(reg["name"], 0)
-        return (now - last) >= interval
-
-    def _persist_register_value(self, reg_name: str, value: Any, ts: float):
-        # Esta função pode ser melhorada no futuro para salvar no HistóricoLeitura
-        pass
-
-    def run(self):
-        ip = self.clp.get("ip")
-        LOG.info("CLPPoller[%s] iniciado", ip)
-        adapter = self.adapter
-        try:
-            adapter.connect(self.clp)
-        except Exception:
-            LOG.debug("Falha inicial de connect para %s", ip)
-
-        while not self.stop_event.is_set():
-            now = time.time()
-            registers = self._load_registers_config()
-            if not registers:
-                time.sleep(5.0) # Espera mais se não há nada para fazer
-                continue
-
-            batches = build_batches(registers)
-            for rtype, start, count, group in batches:
-                needs_read = any(self._should_read(reg, now) for reg in group)
-                if not needs_read:
-                    continue
-
-                if not adapter.connect(self.clp):
-                    LOG.warning("CLPPoller[%s] não conectou; pulando batch %s:%s", ip, start, count)
-                    add_log_in_memory(self.clp, f"connect failed on batch {start}:{count}")
-                    time.sleep(2.0) # Pausa antes de tentar o próximo batch
-                    continue
-
-                try:
-                    raw = adapter.read_tag(self.clp, start, count)
-                except Exception as e:
-                    LOG.exception("CLPPoller read_tag exception %s %s", ip, e)
-                    raw = None
-
-                if not raw:
-                    LOG.debug("CLPPoller[%s] read retornou vazio em %s:%s", ip, start, count)
-                    add_log_in_memory(self.clp, f"read empty {start}:{count}")
-                    continue
-
-                for reg in group:
-                    name = reg["name"]
-                    addr = int(reg["address"])
-                    cnt = int(reg.get("count", 1))
-                    offset = addr - start
-                    try:
-                        segment = raw[offset: offset + cnt]
-                        value = segment[0] if len(segment) == 1 else segment
-                        ts = time.time()
-                        
-                        with self._lock:
-                            self.cache.setdefault(ip, {})
-                            self.cache[ip][name] = {"value": value, "timestamp": ts, "address": addr}
-                        
-                        self._persist_register_value(name, value, ts)
-                        self._last_read[name] = now
-                    except IndexError:
-                        LOG.warning("Erro de índice ao processar registrador %s para CLP %s", name, ip)
-                    except Exception:
-                        LOG.exception("Erro ao separar segmento para %s %s", ip, name)
-                
-                if self.stop_event.is_set():
-                    break
-                time.sleep(0.05)
-
-            time.sleep(0.5)
-
-        try:
-            adapter.disconnect(self.clp)
-        except Exception:
-            pass
-        LOG.info("CLPPoller[%s] finalizado", ip)
-
+logger = logging.getLogger(__name__)
 
 class PollingService:
-    def __init__(self, adapter: Optional[ModbusAdapter] = None):
-        self.adapter = adapter or ModbusAdapter()
-        self._pollers: Dict[str, CLPPoller] = {}
-        self._stop_events: Dict[str, threading.Event] = {}
-        self._cache: Dict[str, Dict[str, Any]] = {}
-        self._global_lock = threading.RLock()
-        self.app = None
-
-    def set_app(self, app):
-        self.app = app
-
-    def start_poll_for(self, clp: Dict[str, Any]) -> bool:
-        ip = clp.get("ip")
-        if not ip:
-            return False
-        with self._global_lock:
-            if ip in self._pollers:
-                return True
-            stop_event = threading.Event()
-            poller = CLPPoller(
-                clp=clp, 
-                adapter=self.adapter, 
-                cache=self._cache,
-                stop_event=stop_event, 
-                app=self.app
+    
+    def __init__(self):
+        self.polling_tasks: Dict[int, asyncio.Task] = {}
+        self.adapters: Dict[int, ModbusAdapter] = {}
+        self.running = False
+    
+    async def start_polling(self):
+        """Inicia sistema de polling para todos os PLCs ativos"""
+        self.running = True
+        logger.info("Sistema de polling iniciado")
+        
+        # Carrega PLCs ativos
+        active_plcs = db.session.query(PLC).filter(PLC.is_active == True).all()
+        
+        for plc in active_plcs:
+            await self.start_plc_polling(plc)
+    
+    async def start_plc_polling(self, plc: PLC):
+        """Inicia polling para um PLC específico"""
+        if plc.id in self.polling_tasks:
+            return  # Já está rodando
+        
+        # Cria adapter para o PLC
+        adapter = ModbusAdapter(
+            ip_address=plc.ip_address,
+            port=plc.port,
+            unit_id=plc.unit_id,
+            timeout=plc.timeout
+        )
+        
+        self.adapters[plc.id] = adapter
+        
+        # Cria task de polling
+        task = asyncio.create_task(self._poll_plc_loop(plc, adapter))
+        self.polling_tasks[plc.id] = task
+        
+        logger.info(f"Polling iniciado para PLC {plc.name} ({plc.ip_address})")
+    
+    async def stop_plc_polling(self, plc_id: int):
+        """Para polling de um PLC específico"""
+        if plc_id in self.polling_tasks:
+            self.polling_tasks[plc_id].cancel()
+            del self.polling_tasks[plc_id]
+        
+        if plc_id in self.adapters:
+            await self.adapters[plc_id].disconnect()
+            del self.adapters[plc_id]
+    
+    async def _poll_plc_loop(self, plc: PLC, adapter: ModbusAdapter):
+        """Loop de polling para um PLC"""
+        try:
+            # Conecta ao PLC
+            if not await adapter.connect():
+                logger.error(f"Falha ao conectar PLC {plc.name}")
+                return
+            
+            # Atualiza status online
+            plc.is_online = True
+            db.session.commit()
+            
+            while self.running:
+                try:
+                    # Carrega registradores ativos do PLC
+                    registers = db.session.query(Register).filter(
+                        Register.plc_id == plc.id,
+                        Register.is_active == True
+                    ).all()
+                    
+                    if not registers:
+                        await asyncio.sleep(plc.polling_interval / 1000.0)
+                        continue
+                    
+                    # Prepara dados para leitura
+                    reg_data = [reg.to_dict() for reg in registers]
+                    
+                    # Lê registradores
+                    readings_data = await adapter.read_registers(reg_data)
+                    
+                    # Salva leituras no banco
+                    await self._save_readings(readings_data, registers)
+                    
+                    # Aguarda próximo ciclo
+                    await asyncio.sleep(plc.polling_interval / 1000.0)
+                    
+                except Exception as e:
+                    logger.error(f"Erro no polling do PLC {plc.name}: {e}")
+                    await asyncio.sleep(5)  # Aguarda antes de tentar novamente
+        
+        except asyncio.CancelledError:
+            logger.info(f"Polling cancelado para PLC {plc.name}")
+        finally:
+            # Atualiza status offline
+            plc.is_online = False
+            db.session.commit()
+            await adapter.disconnect()
+    
+    async def _save_readings(self, readings_data: List[Dict], registers: List[Register]):
+        """Salva leituras no banco de dados"""
+        readings_to_add = []
+        
+        for reading_data in readings_data:
+            # Encontra o registrador correspondente
+            register = next(
+                (r for r in registers if r.id == reading_data['register_id']), 
+                None
             )
-            self._stop_events[ip] = stop_event
-            self._pollers[ip] = poller
-            poller.start()
-            LOG.info("PollingService: iniciado poller para %s", ip)
-        return True
-
-    def stop_poll_for(self, ip: str) -> bool:
-        with self._global_lock:
-            if ip not in self._pollers:
-                return False
-            self._stop_events[ip].set()
-            self._pollers[ip].join(timeout=5)
-            self._pollers.pop(ip, None)
-            self._stop_events.pop(ip, None)
-            LOG.info("PollingService: parado poller para %s", ip)
-        return True
-
-    def start_all_from_db(self):
-        clps_orm = CLPRepository.get_all()
-        clps_ativos = [CLPService._serialize_clp(clp) for clp in clps_orm if clp.ativo]
-        for clp_dict in clps_ativos:
-            self.start_poll_for(clp_dict)
-
-    def stop_all(self):
-        for ip in list(self._pollers.keys()):
-            self.stop_poll_for(ip)
-
-    def get_cache(self) -> Dict[str, Dict[str, Any]]:
-        with self._global_lock:
-            return copy.deepcopy(self._cache)
-
-    def is_running(self, ip: str) -> bool:
-        return ip in self._pollers
-
-polling_service = PollingService()
+            if not register:
+                continue
+            
+            # Aplica escala e offset
+            raw_value = reading_data['raw_value']
+            scaled_value = (raw_value * register.scale_factor) + register.offset
+            
+            # Cria objeto Reading
+            reading = Reading(
+                register_id=register.id,
+                raw_value=raw_value,
+                scaled_value=scaled_value,
+                quality=reading_data['quality']
+            )
+            
+            readings_to_add.srcend(reading)
+        
+        # Salva em lote para performance
+        if readings_to_add:
+            db.session.add_all(readings_to_add)
+            db.session.commit()

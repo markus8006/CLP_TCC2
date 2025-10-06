@@ -1,38 +1,30 @@
-# run.py
-import threading
-import time
-from src.app import create_app
-from src.services.polling_service import polling_service
-from src.utils.log.log import setup_logger
+from src.views import create_app
+from src.utils.async_runner import AsyncLoopThread
+from src.services.polling_service import PollingService
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+# Cria instância do loop asyncio em thread separada
+async_loop = AsyncLoopThread()
 
-logger = setup_logger()
+# Instância do PollingService
+polling_service = PollingService()
 
+# Cria src Flask
+src = create_app()
 
+# Injeta o async_loop no polling_service se necessário
+# polling_service.set_async_loop(async_loop)
 
-def main():
-    app = create_app()
+# Inicializa PollingService no loop asyncio sem bloquear o run.py
+try:
+    async_loop.run_coro(polling_service.start_polling())
+    logger.info("PollingService iniciado em background")
+except Exception as e:
+    logger.error(f"Erro ao iniciar PollingService: {e}")
 
-    # 1) anexa a app ao polling_service (permitirá persistência dentro das threads)
-    polling_service.set_app(app)
-
-    # 2) Inicia simulador em thread (opcional)
-    # t = threading.Thread(target=start_modbus_simulator, kwargs={"host": "127.0.0.1", "port": 5020}, daemon=True)
-    # t.start()
-    # time.sleep(1)
-
-    # 3) Chame start_all_from_controller() DENTRO do app context
-    with app.app_context():
-        try:
-            # A chamada foi renomeada para refletir a nova lógica
-            polling_service.start_all_from_db()
-            logger.info("PollingService: pollers iniciados a partir do banco")
-        except Exception as e:
-            logger.exception("Erro ao iniciar pollers: %s", e)
-
-
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    # Roda o Flask normalmente (debug=False para produção)
+    src.run(host='0.0.0.0', port=5000, debug=True)

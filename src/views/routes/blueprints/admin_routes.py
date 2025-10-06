@@ -3,8 +3,8 @@ from flask import Blueprint, render_template, abort, flash, redirect, url_for, r
 from flask_login import login_required, current_user
 from src.utils.decorators.decorators import role_required
 from src.models.Users import User, UserRole
-from src.app import db  # seu SQLAlchemy
-from src.views.forms import RegistrationForm, DeleteForm  # reaproveitando o form de registro
+from src.db import db  # seu SQLAlchemy
+from src.views.formularios.forms_auht import RegistrationForm, DeleteForm  # reaproveitando o form de registro
 
 # Blueprint da área de administração
 adm_bp = Blueprint("adm", __name__, url_prefix="/admin")

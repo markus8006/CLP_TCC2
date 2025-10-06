@@ -1,7 +1,7 @@
 # tests/test_models.py
 
 from src.models.Users import User, UserRole
-from src.models.CLP import CLP
+from src.models.PLC import CLP
 
 def test_new_user(new_user):
     """

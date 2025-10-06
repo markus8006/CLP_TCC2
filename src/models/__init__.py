@@ -1,14 +1,12 @@
-from .CLP import CLP, CLPConfigRegistrador, HistoricoLeitura
+from .PLC import PLC
 from .Users import User, UserRole
-from .Leitura import Leitura
-from . Sensor import Sensor
+from .Reading import Reading
+from .Registers import Register
 
 __all__ = [
-    "CLP",
-    "CLPConfigRegistrador",
-    "HistoricoLeitura",
+    "PLC",
     "User",
-    "Leitura",
-    "Sensor",
+    "Reading",
+    "Register",
     "UserRole"
 ]

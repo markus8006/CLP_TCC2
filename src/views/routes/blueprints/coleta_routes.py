@@ -15,7 +15,10 @@ from flask_login import login_required
 from src.utils.decorators.decorators import role_required
 from src.utils.network.discovery import discovery_background_once, logger as discovery_logger
 from src.utils.root.paths import DISCOVERY_FILE
-from src.services.clp_service import CLPService
+from src.services.plc_service import CLPService
+
+
+service = CLPService()
 
 # (O resto do código de gerenciamento da thread permanece o mesmo)
 # ...
@@ -85,7 +88,7 @@ def _start_discovery_thread() -> bool:
         def _worker():
             global _disc_thread
             try:
-                # O ideal é que discovery_background_once() também use o CLPService
+                # O ideal é que discovery_background_once() também use o service
                 # para salvar os resultados, mas por agora mantemos o foco na rota.
                 discovery_background_once() 
             finally:
@@ -177,19 +180,19 @@ def coleta_manual():
 
         # Monta o dicionário de dados
         dados_clp = {
-            "ip": ip,
-            "nome": nome,
+            "ip_address": ip,
+            "name": nome,
             "mac": request.form.get("mac", "").strip(),
             "subnet": request.form.get("subnet", "").strip(),
             "portas": portas_list,  # AQUI ESTÁ A MUDANÇA PRINCIPAL
             "tipo": "CLP",
-            "ativo": True,
+            "is_active": True,
             "manual": True,
         }
 
         try:
             # Delega a criação ou atualização para o serviço
-            CLPService.criar_ou_atualizar_clp(dados_clp)
+            service.criar_ou_atualizar_clp(dados_clp)
             flash(f"CLP {ip} foi salvo com sucesso!", "success")
         except Exception as e:
             current_app.logger.error(f"ERRO AO SALVAR CLP MANUAL: {e}")
@@ -198,5 +201,5 @@ def coleta_manual():
         return redirect(url_for("coleta.coleta_manual"))
 
     # Para o método GET, buscamos os CLPs através do serviço
-    clps_salvos = CLPService.buscar_todos_clps()
+    clps_salvos = service.buscar_todos_clps()
     return render_template("clps/clp_manual.html", clps=clps_salvos)

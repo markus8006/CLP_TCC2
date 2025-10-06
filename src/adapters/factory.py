@@ -1,6 +1,6 @@
 from .modbus_adapter import ModbusAdapter
 from .opcua_adapter import OpcUaAdapter
-from .base_adapter import BaseAdapter
+from .protocol_interface import BaseAdapter
 from typing import Dict, Type
 
 def get_adapter(protocol: str) -> BaseAdapter:

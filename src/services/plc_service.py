@@ -2,28 +2,33 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from src.repositories.clp_repository import CLPRepository
-from src.models.CLP import CLP # Importar o modelo para type hinting
+from src.repositories.plc_repository import PLCRepository
+from src.models.PLC import PLC # Importar o modelo para type hinting
+
+repository = PLCRepository()
 
 logger = logging.getLogger(__name__)
 
 class CLPService:
+
+
     @staticmethod
     def criar_ou_atualizar_clp(dados: Dict[str, Any]) -> Dict[str, Any]:
         """Cria ou atualiza um CLP e retorna um dicionário serializado."""
-        clp_orm = CLPRepository.create_or_update(dados)
+        clp_orm = repository.create_or_update(dados)
         return CLPService._serialize_clp(clp_orm)
 
     @staticmethod
     def buscar_todos_clps() -> List[Dict[str, Any]]:
         """Busca todos os CLPs e retorna uma lista de dicionários."""
-        clps_orm = CLPRepository.get_all()
+        clps_orm = repository.get_all()
+        # Garante que a lista retornada seja de dicionários
         return [CLPService._serialize_clp(clp) for clp in clps_orm]
 
     @staticmethod
     def buscar_clp_por_ip(ip: str) -> Optional[Dict[str, Any]]:
         """Busca um CLP pelo IP e retorna um dicionário."""
-        clp_orm = CLPRepository.get_by_ip(ip)
+        clp_orm = repository.get_by_ip(ip)
         if clp_orm:
             return CLPService._serialize_clp(clp_orm)
         return None
@@ -31,16 +36,16 @@ class CLPService:
     @staticmethod
     def atualizar_nome_clp(ip: str, novo_nome: str) -> bool:
         """Atualiza o nome de um CLP."""
-        clp_orm = CLPRepository.get_by_ip(ip)
+        clp_orm = repository.get_by_ip(ip)
         if not clp_orm:
             return False
-        CLPRepository.update(clp_orm, {"nome": novo_nome})
+        PLCRepository.update(clp_orm, {"nome": novo_nome})
         return True
 
     @staticmethod
     def adicionar_tag(ip: str, tag: str) -> Optional[List[str]]:
         """Adiciona uma tag a um CLP."""
-        clp_orm = CLPRepository.get_by_ip(ip)
+        clp_orm = PLCRepository.get_by_ip(ip)
         if not clp_orm:
             return None
         
@@ -52,13 +57,13 @@ class CLPService:
             
         tags.add(tag)
         info_data["tags"] = sorted(list(tags))
-        CLPRepository.update(clp_orm, {"info": info_data})
+        PLCRepository.update(clp_orm, {"info": info_data})
         return info_data["tags"]
 
     @staticmethod
     def remover_tag(ip: str, tag: str) -> Optional[List[str]]:
         """Remove uma tag de um CLP."""
-        clp_orm = CLPRepository.get_by_ip(ip)
+        clp_orm = PLCRepository.get_by_ip(ip)
         if not clp_orm:
             return None
             
@@ -69,24 +74,22 @@ class CLPService:
 
         tags.remove(tag)
         info_data["tags"] = sorted(list(tags))
-        CLPRepository.update(clp_orm, {"info": info_data})
+        PLCRepository.update(clp_orm, {"info": info_data})
         return info_data["tags"]
 
     @staticmethod
-    def _serialize_clp(clp: CLP) -> Dict[str, Any]:
-        """Converte um objeto CLP ORM para um dicionário."""
-        # CORREÇÃO: Adicionar mais campos para a UI
+    def _serialize_clp(clp: PLC) -> Dict[str, Any]:
+        """Converte um objeto CLP ORM para um dicionário com as chaves corretas para o template."""
+        # CORREÇÃO: Usar os nomes de atributos que existem no seu modelo PLC
         return {
             "id": clp.id,
-            "nome": clp.nome,
-            "ip": clp.ip,
+            "nome": clp.name,          # Correto: clp.name
+            "ip": clp.ip_address,     # Correto: clp.ip_address
             "mac": clp.mac,
             "subnet": clp.subnet,
-            "porta": clp.porta,
-            "modelo": clp.modelo,
-            "descricao": clp.descricao,
-            "ativo": clp.ativo,
-            "manual": clp.manual,
-            "portas": clp.portas or [], # Garantir que seja uma lista
-            "tags": (clp.info or {}).get("tags", []),
+            "portas": clp.portas or [], # Garante que seja uma lista
+            "descricao": f"Protocolo: {clp.protocol}, ID: {clp.unit_id}", # Exemplo de descrição
+            # "tags": (clp.info or {}).get("tags", []), # Assumindo que 'tags' vivem num campo JSON 'info'
         }
+    
+    

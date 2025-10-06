@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from src.app import db
 
-from src.services.clp_service import CLPService
+from src.services.plc_service import CLPService
 from src.services.polling_service import polling_service, CLPPoller
 from src.models import CLP
 
