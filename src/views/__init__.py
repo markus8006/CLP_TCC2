@@ -8,9 +8,12 @@ from src.models import PLC, Reading, Register, User, UserRole
 import time
 from src.utils.async_runner import AsyncLoopThread, async_loop
 from src.services.polling_service import PollingService
+from config import Config
+from flask_migrate import Migrate
 # --- Extensões globais ---
 from src.db import db
 login_manager = LoginManager()
+
 
 polling_service = PollingService()
 
@@ -34,7 +37,7 @@ login_manager.login_message = "Por favor, faça o login para acessar esta págin
 login_manager.login_message_category = "info"
 
 # --- Factory da aplicação ---
-def create_app():
+def create_app(config_class=Config):
     project_root = get_project_root()
     template_folder = os.path.join(project_root, "views", "templates")
     static_folder = os.path.join(project_root, "views", "static")
@@ -43,6 +46,7 @@ def create_app():
     project_root = get_project_root()
     db_path = os.path.join(project_root, "db")
     os.makedirs(db_path, exist_ok=True)
+    app.config.from_object(config_class)
 
     app.config.update(
         SECRET_KEY="minha_chave_super_secreta",
@@ -81,4 +85,5 @@ def create_app():
     app.register_blueprint(coleta_bp)
 
     async_loop.run_coro(polling_service.start_polling())
+    migrate = Migrate(app, db)
     return app
