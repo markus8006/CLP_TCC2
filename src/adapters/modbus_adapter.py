@@ -50,9 +50,10 @@ class ModbusAdapter(ProtocolAdapter):
                 data_type = reg['data_type']
                 
                 # Leitura baseada no tipo de registrador
+                logger.info(f"Lendo do PLC, id = {self.unit_id}")
                 if register_type == 'holding':
                     result = await self.client.read_holding_registers(
-                        address, 1, unit=self.unit_id
+                        address, 1, slave=self.unit_id
                     )
                 elif register_type == 'input':
                     result = await self.client.read_input_registers(

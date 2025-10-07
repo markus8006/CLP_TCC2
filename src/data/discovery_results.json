@@ -1,0 +1,984 @@
+[
+  {
+    "ip": "3.228.209.171",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "3.228.209.171"
+    ]
+  },
+  {
+    "ip": "4.228.132.40",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "4.228.132.40"
+    ]
+  },
+  {
+    "ip": "10.103.132.3",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.132.3"
+    ]
+  },
+  {
+    "ip": "10.103.132.4",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.132.4"
+    ]
+  },
+  {
+    "ip": "10.103.132.5",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.132.5"
+    ]
+  },
+  {
+    "ip": "10.103.135.1",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.1"
+    ]
+  },
+  {
+    "ip": "10.103.135.7",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.7"
+    ]
+  },
+  {
+    "ip": "10.103.135.8",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.8"
+    ]
+  },
+  {
+    "ip": "10.103.135.10",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp",
+      "tcp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": true
+    },
+    "portas_detalhadas": [
+      80,
+      135,
+      139,
+      445,
+      796
+    ],
+    "ips_seen": [
+      "10.103.135.10"
+    ]
+  },
+  {
+    "ip": "10.103.135.11",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.11"
+    ]
+  },
+  {
+    "ip": "10.103.135.13",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.13"
+    ]
+  },
+  {
+    "ip": "10.103.135.19",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp",
+      "tcp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": true
+    },
+    "portas_detalhadas": [
+      80,
+      135,
+      139,
+      445
+    ],
+    "ips_seen": [
+      "10.103.135.19"
+    ]
+  },
+  {
+    "ip": "10.103.135.20",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "tcp"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": true,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": true
+    },
+    "portas_detalhadas": [
+      80,
+      102,
+      135,
+      139,
+      445,
+      796
+    ],
+    "ips_seen": [
+      "10.103.135.20"
+    ]
+  },
+  {
+    "ip": "10.103.135.21",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp",
+      "tcp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": true
+    },
+    "portas_detalhadas": [
+      80,
+      135,
+      139,
+      445,
+      796
+    ],
+    "ips_seen": [
+      "10.103.135.21"
+    ]
+  },
+  {
+    "ip": "10.103.135.29",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.29"
+    ]
+  },
+  {
+    "ip": "10.103.135.30",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp",
+      "tcp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": true
+    },
+    "portas_detalhadas": [
+      80,
+      135,
+      139,
+      445,
+      796
+    ],
+    "ips_seen": [
+      "10.103.135.30"
+    ]
+  },
+  {
+    "ip": "10.103.135.34",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp",
+      "tcp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": true
+    },
+    "portas_detalhadas": [
+      80,
+      135,
+      139,
+      445,
+      796
+    ],
+    "ips_seen": [
+      "10.103.135.34"
+    ]
+  },
+  {
+    "ip": "10.103.135.35",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp",
+      "tcp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": true
+    },
+    "portas_detalhadas": [
+      80,
+      135,
+      139,
+      445,
+      796
+    ],
+    "ips_seen": [
+      "10.103.135.35"
+    ]
+  },
+  {
+    "ip": "10.103.135.36",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.36"
+    ]
+  },
+  {
+    "ip": "10.103.135.38",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.38"
+    ]
+  },
+  {
+    "ip": "10.103.135.41",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.41"
+    ]
+  },
+  {
+    "ip": "10.103.135.43",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp",
+      "tcp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": true
+    },
+    "portas_detalhadas": [
+      80,
+      135,
+      139,
+      445,
+      796
+    ],
+    "ips_seen": [
+      "10.103.135.43"
+    ]
+  },
+  {
+    "ip": "10.103.135.49",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.49"
+    ]
+  },
+  {
+    "ip": "10.103.135.50",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.50"
+    ]
+  },
+  {
+    "ip": "10.103.135.56",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp",
+      "tcp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": true
+    },
+    "portas_detalhadas": [
+      80,
+      135,
+      139,
+      445,
+      796
+    ],
+    "ips_seen": [
+      "10.103.135.56"
+    ]
+  },
+  {
+    "ip": "10.103.135.61",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.61"
+    ]
+  },
+  {
+    "ip": "10.103.135.64",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "10.103.135.64"
+    ]
+  },
+  {
+    "ip": "13.107.246.34",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "13.107.246.34"
+    ]
+  },
+  {
+    "ip": "23.96.180.189",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "23.96.180.189"
+    ]
+  },
+  {
+    "ip": "23.193.118.88",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "23.193.118.88"
+    ]
+  },
+  {
+    "ip": "35.190.80.1",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "35.190.80.1"
+    ]
+  },
+  {
+    "ip": "44.225.240.147",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive"
+    ],
+    "alive_icmp": false,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "44.225.240.147"
+    ]
+  },
+  {
+    "ip": "92.123.10.224",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "92.123.10.224"
+    ]
+  },
+  {
+    "ip": "104.16.174.226",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "104.16.174.226"
+    ]
+  },
+  {
+    "ip": "140.82.113.25",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "140.82.113.25"
+    ]
+  },
+  {
+    "ip": "142.251.0.188",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "142.251.0.188"
+    ]
+  },
+  {
+    "ip": "142.251.132.42",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "142.251.132.42"
+    ]
+  },
+  {
+    "ip": "150.171.28.11",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "150.171.28.11"
+    ]
+  },
+  {
+    "ip": "172.64.148.235",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "172.64.148.235"
+    ]
+  },
+  {
+    "ip": "172.64.155.209",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "172.64.155.209"
+    ]
+  },
+  {
+    "ip": "172.172.255.216",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "172.172.255.216"
+    ]
+  },
+  {
+    "ip": "172.217.30.132",
+    "mac": null,
+    "subnet": null,
+    "iface": null,
+    "discovered_via": [
+      "passive",
+      "icmp"
+    ],
+    "alive_icmp": true,
+    "portas": {
+      "502": false,
+      "102": false,
+      "44818": false,
+      "1911": false,
+      "161": false,
+      "4840": false
+    },
+    "ips_seen": [
+      "172.217.30.132"
+    ]
+  }
+]

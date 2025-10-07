@@ -1,140 +1,188 @@
 import asyncio
 from typing import Dict, List
-from sqlalchemy.orm import sessionmaker
 from src.models.PLC import PLC
 from src.models.Registers import Register
 from src.models.Reading import Reading
 from src.adapters.modbus_adapter import ModbusAdapter
-from src import db
+from src.db import db
 import logging
+from src.utils.async_runner import async_loop
+from flask import Flask
 
 logger = logging.getLogger(__name__)
 
 class PollingService:
-    
-    def __init__(self):
-        self.polling_tasks: Dict[int, asyncio.Task] = {}
+    def __init__(self, app: Flask = None):
+        """
+        Recebe optionalmente a app para usar app_context.
+        """
+        self.app = app
+        self.polling_tasks: Dict[int, asyncio.Future] = {}
         self.adapters: Dict[int, ModbusAdapter] = {}
         self.running = False
-    
+
+    def init_app(self, app: Flask):
+        self.app = app
+
     async def start_polling(self):
-        """Inicia sistema de polling para todos os PLCs ativos"""
+        if not self.app:
+            logger.error("PollingService precisa de app (chame init_app ou passe app no construtor).")
+            return
+
         self.running = True
         logger.info("Sistema de polling iniciado")
-        
-        # Carrega PLCs ativos
-        active_plcs = db.session.query(PLC).filter(PLC.is_active == True).all()
-        
+
+        def _get_active_plcs():
+            with self.app.app_context():
+                return db.session.query(PLC).filter(PLC.is_active == True).all()
+
+        active_plcs = await asyncio.to_thread(_get_active_plcs)
+
         for plc in active_plcs:
-            await self.start_plc_polling(plc)
-    
-    async def start_plc_polling(self, plc: PLC):
-        """Inicia polling para um PLC específico"""
-        if plc.id in self.polling_tasks:
-            return  # Já está rodando
-        
-        # Cria adapter para o PLC
-        adapter = ModbusAdapter(
-            ip_address=plc.ip_address,
-            port=plc.port,
-            unit_id=plc.unit_id,
-            timeout=plc.timeout
-        )
-        
-        self.adapters[plc.id] = adapter
-        
-        # Cria task de polling
-        task = asyncio.create_task(self._poll_plc_loop(plc, adapter))
-        self.polling_tasks[plc.id] = task
-        
-        logger.info(f"Polling iniciado para PLC {plc.name} ({plc.ip_address})")
-    
-    async def stop_plc_polling(self, plc_id: int):
-        """Para polling de um PLC específico"""
+            await self.start_plc_polling(plc.id)
+
+    async def start_plc_polling(self, plc_id: int):
+        """Inicia polling para um PLC específico (recebe plc_id para evitar passar ORM entre threads)"""
+        logger.info("Chamado start_plc_polling para PLC id=%s", plc_id)
         if plc_id in self.polling_tasks:
-            self.polling_tasks[plc_id].cancel()
-            del self.polling_tasks[plc_id]
-        
-        if plc_id in self.adapters:
-            await self.adapters[plc_id].disconnect()
-            del self.adapters[plc_id]
-    
-    async def _poll_plc_loop(self, plc: PLC, adapter: ModbusAdapter):
-        """Loop de polling para um PLC"""
+            logger.info("Polling já está ativo para PLC id=%s", plc_id)
+            return
+
+        # busca o objeto PLC dentro do app_context (thread-safe)
+        def _get_plc():
+            with self.app.app_context():
+                return db.session.get(PLC, plc_id)
+
+        plc = await asyncio.to_thread(_get_plc)
+        if not plc:
+            logger.error("PLC id=%s não encontrado no DB", plc_id)
+            return
+
         try:
-            # Conecta ao PLC
-            if not await adapter.connect():
+            logger.info("Criando adapter para PLC id=%s (ip=%s port=%s unit=%s)",
+                        plc_id, plc.ip_address, plc.portas, getattr(plc, "unit_id", None))
+            adapter = ModbusAdapter(
+                ip_address=plc.ip_address,
+                port=int(plc.portas[0]),
+                timeout=plc.timeout
+            )
+            self.adapters[plc_id] = adapter
+
+            # Agenda a tarefa de polling no loop global (async_loop importado no módulo)
+            future = async_loop.run_coro(self._poll_plc_loop(plc_id, adapter))
+            self.polling_tasks[plc_id] = future
+            logger.info("Polling iniciado para PLC %s (%s) -> future=%s", plc.name, plc.ip_address, future)
+
+        except Exception as e:
+            logger.exception("Erro ao iniciar polling para PLC id=%s: %s", plc_id, e)
+
+    async def stop_plc_polling(self, plc_id: int):
+        if plc_id in self.polling_tasks:
+            fut = self.polling_tasks[plc_id]
+            fut.cancel()
+            del self.polling_tasks[plc_id]
+
+        if plc_id in self.adapters:
+            try:
+                await self.adapters[plc_id].disconnect()
+            except Exception:
+                logger.exception("Erro ao desconectar adapter")
+            finally:
+                del self.adapters[plc_id]
+
+    async def _poll_plc_loop(self, plc_id: int, adapter: ModbusAdapter):
+        logger.info(f"Leitura iniciada para PLC id={plc_id}")
+
+        def _get_plc():
+            with self.app.app_context():
+                return db.session.get(PLC, plc_id)
+
+        plc = await asyncio.to_thread(_get_plc)
+        if not plc:
+            logger.error(f"PLC id={plc_id} removido antes do polling iniciar")
+            return
+
+        try:
+            ok = await adapter.connect()
+            if not ok:
                 logger.error(f"Falha ao conectar PLC {plc.name}")
                 return
-            
-            # Atualiza status online
-            plc.is_online = True
-            db.session.commit()
-            
+
+            def _set_online(value: bool):
+                with self.app.app_context():
+                    p = db.session.get(PLC, plc_id)
+                    if p:
+                        p.is_online = value
+                        db.session.commit()
+
+            await asyncio.to_thread(_set_online, True)
+
             while self.running:
                 try:
-                    # Carrega registradores ativos do PLC
-                    registers = db.session.query(Register).filter(
-                        Register.plc_id == plc.id,
-                        Register.is_active == True
-                    ).all()
-                    
+                    def _get_registers():
+                        with self.app.app_context():
+                            return db.session.query(Register).filter(
+                                Register.plc_id == plc_id,
+                                Register.is_active == True
+                            ).all()
+
+                    registers = await asyncio.to_thread(_get_registers)
+
                     if not registers:
-                        await asyncio.sleep(plc.polling_interval / 1000.0)
+                        plc = await asyncio.to_thread(_get_plc)
+                        await asyncio.sleep((plc.polling_interval / 1000.0) if plc else 1.0)
                         continue
-                    
-                    # Prepara dados para leitura
+
                     reg_data = [reg.to_dict() for reg in registers]
-                    
-                    # Lê registradores
                     readings_data = await adapter.read_registers(reg_data)
-                    
-                    # Salva leituras no banco
                     await self._save_readings(readings_data, registers)
-                    
-                    # Aguarda próximo ciclo
-                    await asyncio.sleep(plc.polling_interval / 1000.0)
-                    
+
+                    plc = await asyncio.to_thread(_get_plc)
+                    await asyncio.sleep((plc.polling_interval / 1000.0) if plc else 1.0)
+
+                except asyncio.CancelledError:
+                    logger.info(f"Polling cancelado internamente para PLC id={plc_id}")
+                    raise
                 except Exception as e:
-                    logger.error(f"Erro no polling do PLC {plc.name}: {e}")
-                    await asyncio.sleep(5)  # Aguarda antes de tentar novamente
-        
+                    logger.exception(f"Erro no polling do PLC id={plc_id}: {e}")
+                    await asyncio.sleep(5)
+
         except asyncio.CancelledError:
-            logger.info(f"Polling cancelado para PLC {plc.name}")
+            logger.info(f"Polling cancelado para PLC id={plc_id}")
         finally:
-            # Atualiza status offline
-            plc.is_online = False
-            db.session.commit()
-            await adapter.disconnect()
-    
+            def _set_offline():
+                with self.app.app_context():
+                    p = db.session.get(PLC, plc_id)
+                    if p:
+                        p.is_online = False
+                        db.session.commit()
+
+            await asyncio.to_thread(_set_offline)
+            try:
+                await adapter.disconnect()
+            except Exception:
+                logger.exception("Erro ao desconectar adapter no finally")
+
     async def _save_readings(self, readings_data: List[Dict], registers: List[Register]):
-        """Salva leituras no banco de dados"""
-        readings_to_add = []
-        
-        for reading_data in readings_data:
-            # Encontra o registrador correspondente
-            register = next(
-                (r for r in registers if r.id == reading_data['register_id']), 
-                None
-            )
-            if not register:
-                continue
-            
-            # Aplica escala e offset
-            raw_value = reading_data['raw_value']
-            scaled_value = (raw_value * register.scale_factor) + register.offset
-            
-            # Cria objeto Reading
-            reading = Reading(
-                register_id=register.id,
-                raw_value=raw_value,
-                scaled_value=scaled_value,
-                quality=reading_data['quality']
-            )
-            
-            readings_to_add.srcend(reading)
-        
-        # Salva em lote para performance
-        if readings_to_add:
-            db.session.add_all(readings_to_add)
-            db.session.commit()
+        def _save():
+            with self.app.app_context():
+                readings_to_add = []
+                for reading_data in readings_data:
+                    register = next((r for r in registers if r.id == reading_data['register_id']), None)
+                    if not register:
+                        continue
+                    raw_value = reading_data['raw_value']
+                    scaled_value = (raw_value * register.scale_factor) + register.offset
+                    reading = Reading(
+                        register_id=register.id,
+                        raw_value=raw_value,
+                        scaled_value=scaled_value,
+                        quality=reading_data.get('quality')
+                    )
+                    readings_to_add.append(reading)
+
+                if readings_to_add:
+                    db.session.add_all(readings_to_add)
+                    db.session.commit()
+
+        await asyncio.to_thread(_save)

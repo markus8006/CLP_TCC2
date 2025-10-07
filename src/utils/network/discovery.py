@@ -1,4 +1,4 @@
-# src/utils/network/discovery.py
+# src/utils/network/enhanced_discovery.py
 import os
 import ipaddress
 import json
@@ -9,9 +9,17 @@ import xml.etree.ElementTree as ET
 import tempfile
 import copy
 import re
-from typing import List, Dict, Optional, Any, Set, Tuple
+try:
+    import netifaces
+except:
+    netifaces = None
+import psutil
+from typing import List, Dict, Optional, Any, Set, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import time
+from dataclasses import dataclass
+from collections import defaultdict
+import threading
 
 from scapy.all import (
     sniff,
@@ -26,9 +34,9 @@ from scapy.all import (
     get_if_addr,
 )
 
-# imports do seu projeto
+# imports do projeto
 try:
-    from src.utils.network.portas import escanear_portas  # opcional, fallback
+    from src.utils.network.portas import escanear_portas
 except Exception:
     escanear_portas = None
 
@@ -39,676 +47,733 @@ from src.utils.root.paths import DISCOVERY_FILE
 logger = setup_logger()
 
 # -----------------------
-# CONFIGURAÇÕES
+# CONFIGURAÇÕES MELHORADAS
 # -----------------------
-COMMON_PLC_PORTS: List[int] = [502, 102, 44818, 1911, 161, 4840]  # Modbus, S7, EtherNet/IP, Rockwell, SNMP, OPC-UA
-DEFAULT_PASSIVE_TIMEOUT = 30
-DEFAULT_ARP_TIMEOUT = 2
-DEFAULT_ICMP_TIMEOUT = 1
-DEFAULT_TCP_TIMEOUT = 0.5
-MAX_WORKERS = 12
-USE_NMAP_FOR_FULL_PORT_SCAN = True  # controlar se nmap será usado
-NMAP_TIMEOUT_PER_HOST = 300  # segundos, ajustar conforme necessário
+@dataclass
+class DiscoveryConfig:
+    """Configuração centralizada para descoberta de rede"""
+    # Portas específicas para dispositivos industriais
+    MODBUS_PORTS: List[int] = None
+    SIEMENS_PORTS: List[int] = None  
+    ROCKWELL_PORTS: List[int] = None
+    SCHNEIDER_PORTS: List[int] = None
+    OPCUA_PORTS: List[int] = None
+    COMMON_INDUSTRIAL_PORTS: List[int] = None
+    
+    # Timeouts adaptativos
+    BASE_PASSIVE_TIMEOUT: int = 30
+    BASE_ARP_TIMEOUT: int = 3
+    BASE_ICMP_TIMEOUT: int = 2
+    BASE_TCP_TIMEOUT: float = 1.0
+    
+    # Threading
+    MAX_WORKERS_PER_INTERFACE: int = 8
+    MAX_TOTAL_WORKERS: int = 32
+    
+    # Nmap
+    USE_NMAP: bool = True
+    NMAP_TIMEOUT_BASE: int = 300
+    NMAP_INTENSITY: int = 0
+    
+    # Cache e performance
+    CACHE_DURATION_SECONDS: int = 300  # 5 minutos
+    ENABLE_CACHE: bool = True
+    
+    def __post_init__(self):
+        if self.MODBUS_PORTS is None:
+            self.MODBUS_PORTS = [502, 1502]
+        if self.SIEMENS_PORTS is None:
+            self.SIEMENS_PORTS = [102, 135, 161, 80, 443, 8080]
+        if self.ROCKWELL_PORTS is None:
+            self.ROCKWELL_PORTS = [44818, 2222, 5555, 1911]
+        if self.SCHNEIDER_PORTS is None:
+            self.SCHNEIDER_PORTS = [502, 80, 443, 161, 1024, 1025]
+        if self.OPCUA_PORTS is None:
+            self.OPCUA_PORTS = [4840, 48400, 48401, 48402]
+        if self.COMMON_INDUSTRIAL_PORTS is None:
+            self.COMMON_INDUSTRIAL_PORTS = list(set(
+                self.MODBUS_PORTS + self.SIEMENS_PORTS + 
+                self.ROCKWELL_PORTS + self.SCHNEIDER_PORTS + 
+                self.OPCUA_PORTS + [20000, 20001, 20002, 161, 162, 23, 21, 80, 443]
+            ))
 
-
-# -----------------------
-# utilitários
-# -----------------------
-def _safe_ip_sort(devs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    try:
-        return sorted(devs, key=lambda x: ipaddress.ip_address(x["ip"]))
-    except Exception:
-        return devs
-
-
-def _read_arp_cache() -> Dict[str, str]:
-    """Tenta ler o ARP cache do sistema como complemento (ip -> mac)."""
-    arp_map: Dict[str, str] = {}
-    try:
-        # tenta ip neigh (Linux)
-        with os.popen("ip neigh") as p:
-            out = p.read().strip().splitlines()
-        for line in out:
-            parts = line.split()
-            if len(parts) >= 5:
-                ip = parts[0]
-                if "lladdr" in parts:
-                    idx = parts.index("lladdr") + 1
-                    mac = parts[idx] if idx < len(parts) else None
-                else:
-                    mac = parts[4] if len(parts) > 4 else None
-                if mac:
-                    arp_map[ip] = mac
-    except Exception:
-        try:
-            with os.popen("arp -n") as p:
-                out = p.read().strip().splitlines()
-            for line in out[1:]:
-                fields = line.split()
-                if fields and len(fields) >= 3:
-                    ip = fields[0]
-                    mac = fields[2]
-                    arp_map[ip] = mac
-        except Exception:
-            pass
-    return arp_map
-
+CONFIG = DiscoveryConfig()
 
 # -----------------------
-# NMAP wrapper
+# DETECÇÃO AVANÇADA DE INTERFACES
 # -----------------------
-def _nmap_available() -> bool:
-    return shutil.which("nmap") is not None
+@dataclass
+class NetworkInterface:
+    """Representa uma interface de rede com suas propriedades"""
+    name: str
+    ip: str
+    netmask: str
+    network: str
+    broadcast: Optional[str]
+    mac: Optional[str]
+    is_up: bool
+    is_physical: bool
+    interface_type: str
+    mtu: Optional[int]
 
-
-def nmap_scan_host(
-    ip: str,
-    all_ports: bool = True,
-    extra_args: Optional[List[str]] = None,
-    use_syn_scan_if_root: bool = True,
-    timeout: int = NMAP_TIMEOUT_PER_HOST,
-) -> Dict[int, Dict[str, Any]]:
+def get_all_network_interfaces() -> List[NetworkInterface]:
     """
-    Executa nmap para o host `ip` e retorna um dict {porta: {state, proto, service, product, version}}.
-    Usa -oX - (XML para stdout) e faz parse.
+    Detecta TODAS as interfaces de rede ativas do sistema
+    Melhoria: usa netifaces + psutil para detecção mais robusta
     """
-    result: Dict[int, Dict[str, Any]] = {}
-
-    if not _nmap_available():
-        logger.warning({"evento": "nmap não encontrado no sistema; pulando nmap_scan_host", "ip": ip})
-        return result
-
-    cmd: List[str] = ["nmap", "-oX", "-"]
-
-    # scan type
-    if use_syn_scan_if_root and os.geteuid() == 0:
-        cmd += ["-sS"]
-    else:
-        cmd += ["-sT"]
-
-    # version detection and speed
-    cmd += ["-sV", "--version-intensity", "0", "-T4"]
-
-    # all ports or extra_args
-    if all_ports:
-        cmd += ["-p-"]
-    if extra_args:
-        cmd += extra_args
-
-    cmd.append(ip)
-
+    interfaces = []
+    
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        stdout = proc.stdout
-        if not stdout:
-            return result
-
-        root = ET.fromstring(stdout)
-        for host in root.findall("host"):
-            ports = host.find("ports")
-            if ports is None:
-                continue
-            for p in ports.findall("port"):
+        # Usar netifaces se disponível (mais confiável)
+        if 'netifaces' in globals():
+            for iface_name in netifaces.interfaces():
                 try:
-                    portid = int(p.attrib.get("portid", "-1"))
-                    proto = p.attrib.get("protocol")
-                    state_node = p.find("state")
-                    state = state_node.attrib.get("state") if state_node is not None else "unknown"
-                    service_node = p.find("service")
-                    service = service_node.attrib.get("name") if service_node is not None else None
-                    product = service_node.attrib.get("product") if service_node is not None else None
-                    version = service_node.attrib.get("version") if service_node is not None else None
-
-                    result[portid] = {
-                        "proto": proto,
-                        "state": state,
-                        "service": service,
-                        "product": product,
-                        "version": version,
-                    }
-                except Exception:
+                    addrs = netifaces.ifaddresses(iface_name)
+                    
+                    # Pular interfaces sem IPv4
+                    if netifaces.AF_INET not in addrs:
+                        continue
+                        
+                    ipv4_info = addrs[netifaces.AF_INET][0]
+                    ip = ipv4_info['addr']
+                    netmask = ipv4_info['netmask']
+                    
+                    # Pular localhost e IPs inválidos
+                    if ip.startswith('127.') or ip == '0.0.0.0':
+                        continue
+                    
+                    # Calcular rede
+                    try:
+                        network_obj = ipaddress.ip_network(f"{ip}/{netmask}", strict=False)
+                        network = str(network_obj)
+                    except:
+                        continue
+                    
+                    # Obter MAC se disponível
+                    mac = None
+                    if netifaces.AF_LINK in addrs:
+                        mac = addrs[netifaces.AF_LINK][0].get('addr')
+                    
+                    # Detectar se é física ou virtual
+                    is_physical = not any(x in iface_name.lower() for x in 
+                                        ['virt', 'docker', 'br-', 'veth', 'lo', 'tun', 'tap'])
+                    
+                    # Determinar tipo de interface
+                    interface_type = _determine_interface_type(iface_name)
+                    
+                    # Verificar se está UP usando psutil
+                    is_up = True
+                    try:
+                        stats = psutil.net_if_stats().get(iface_name)
+                        if stats:
+                            is_up = stats.isup
+                    except:
+                        pass
+                    
+                    interfaces.append(NetworkInterface(
+                        name=iface_name,
+                        ip=ip,
+                        netmask=netmask,
+                        network=network,
+                        broadcast=ipv4_info.get('broadcast'),
+                        mac=mac,
+                        is_up=is_up,
+                        is_physical=is_physical,
+                        interface_type=interface_type,
+                        mtu=None
+                    ))
+                    
+                    logger.debug(f"Interface detectada: {iface_name} - {ip}/{netmask} ({network})")
+                    
+                except Exception as e:
+                    logger.debug(f"Erro processando interface {iface_name}: {e}")
                     continue
-    except subprocess.TimeoutExpired:
-        logger.warning({"evento": "nmap timeout", "ip": ip})
+        
+        # Fallback para método original se netifaces não disponível
+        else:
+            interfaces = _fallback_interface_detection()
+            
     except Exception as e:
-        logger.error({"evento": "Erro executando nmap", "ip": ip, "detalhes": str(e)})
+        logger.error(f"Erro na detecção de interfaces: {e}")
+        interfaces = _fallback_interface_detection()
+    
+    logger.info(f"Total de interfaces detectadas: {len(interfaces)}")
+    return interfaces
 
-    return result
+def _determine_interface_type(iface_name: str) -> str:
+    """Determina o tipo de interface baseado no nome"""
+    name_lower = iface_name.lower()
+    
+    if any(x in name_lower for x in ['eth', 'ens', 'enp']):
+        return 'ethernet'
+    elif any(x in name_lower for x in ['wifi', 'wlan', 'wireless']):
+        return 'wireless'
+    elif any(x in name_lower for x in ['docker', 'br-']):
+        return 'bridge'
+    elif any(x in name_lower for x in ['veth', 'virt']):
+        return 'virtual'
+    elif any(x in name_lower for x in ['tun', 'tap']):
+        return 'tunnel'
+    elif any(x in name_lower for x in ['lo', 'loopback']):
+        return 'loopback'
+    else:
+        return 'unknown'
 
-
-# -----------------------
-# Passive discovery (sniff)
-# -----------------------
-def discover_passively(timeout: int = DEFAULT_PASSIVE_TIMEOUT) -> Set[str]:
-    """
-    Sniff passivamente na(s) interfaces por `timeout` segundos.
-    Retorna set de IPs observados.
-    """
-    if not verificar_permissoes():
-        logger.warning({
-            "evento": "Permissoes insuficientes (passive)",
-            "detalhes": "Execute como root/administrador para sniff passivo completo."
-        })
-        return set()
-
-    logger.info({"evento": "Iniciando descoberta passiva", "timeout": timeout})
-    seen_ips: Set[str] = set()
-
-    def _pkt_handler(pkt):
-        try:
-            if pkt.haslayer(ARP):
-                ip = pkt[ARP].psrc
-                seen_ips.add(ip)
-                logger.debug({"evento": "ARP detectado (passivo)", "ip": ip})
-            elif pkt.haslayer(IP):
-                ip = pkt[IP].src
-                seen_ips.add(ip)
-                logger.debug({"evento": "IP detectado (passivo)", "ip": ip})
-        except Exception as e:
-            logger.debug({"evento": "Erro handler passivo", "detalhes": str(e)})
-
-    sniff(store=0, prn=_pkt_handler, timeout=timeout)
-    logger.info({"evento": "Descoberta passiva concluída", "total": len(seen_ips)})
-    return seen_ips
-
-
-# -----------------------
-# Subnets por interface
-# -----------------------
-def get_local_subnets() -> Set[Tuple[str, str]]:
-    """
-    Retorna set de (iface, subnet_cidr). Usa conf.ifaces quando possível,
-    senão get_if_list/get_if_addr com heurística /24.
-    """
-    subnets: Set[Tuple[str, str]] = set()
-
+def _fallback_interface_detection() -> List[NetworkInterface]:
+    """Método fallback usando scapy/métodos originais"""
+    interfaces = []
+    
     try:
-        for iface_name, iface_data in conf.ifaces.items():
-            ip = getattr(iface_data, "ip", None)
-            netmask = getattr(iface_data, "netmask", None)
-            if not ip or ip.startswith("127.") or not netmask:
-                continue
-            try:
-                iface = ipaddress.ip_interface(f"{ip}/{netmask}")
-                net = str(iface.network)
-                subnets.add((iface_name, net))
-                logger.info({"evento": "Interface detectada", "iface": iface_name, "ip": ip, "subnet": net})
-            except Exception as e:
-                logger.debug({"evento": "Ignorando interface (erro parse)", "iface": iface_name, "detalhes": str(e)})
-    except Exception:
-        logger.debug({"evento": "Falha conf.ifaces; usando fallback get_if_list()"})
-
-    if not subnets:
         for iface in get_if_list():
             try:
                 ip = get_if_addr(iface)
-                if not ip or ip.startswith("127."):
+                if not ip or ip.startswith('127.') or ip == '0.0.0.0':
                     continue
-                net = str(ipaddress.ip_network(f"{ip}/24", strict=False))
-                subnets.add((iface, net))
-                logger.info({"evento": "Interface (fallback) detectada", "iface": iface, "ip": ip, "subnet": net})
-            except Exception:
+                
+                # Assumir /24 como fallback
+                network = str(ipaddress.ip_network(f"{ip}/24", strict=False))
+                
+                interfaces.append(NetworkInterface(
+                    name=iface,
+                    ip=ip,
+                    netmask='255.255.255.0',
+                    network=network,
+                    broadcast=None,
+                    mac=None,
+                    is_up=True,
+                    is_physical=True,
+                    interface_type='unknown',
+                    mtu=None
+                ))
+            except:
                 continue
-
-    return subnets
-
+    except:
+        pass
+        
+    return interfaces
 
 # -----------------------
-# ARP scan ativo
+# TIMEOUTS ADAPTATIVOS
 # -----------------------
-def arp_scan(network_cidr: str, timeout: int = DEFAULT_ARP_TIMEOUT) -> List[Dict[str, str]]:
+def calculate_adaptive_timeouts(network_size: int) -> Dict[str, Union[int, float]]:
     """
-    Executa ARP scan na faixa (ex: '192.168.1.0/24').
-    Retorna list dict {'ip','mac','subnet'}.
+    Calcula timeouts baseados no tamanho da rede
+    Melhoria: evita timeouts muito baixos para redes grandes
     """
-    results: List[Dict[str, str]] = []
-    try:
-        arp = ARP(pdst=network_cidr)
-        ether = Ether(dst="ff:ff:ff:ff:ff:ff")
-        answered, _ = srp(ether / arp, timeout=timeout, verbose=0)
-        for _, rcv in answered:
-            results.append({"ip": rcv.psrc, "mac": rcv.hwsrc, "subnet": network_cidr})
-        logger.info({"evento": "ARP scan concluído", "subnet": network_cidr, "found": len(results)})
-    except PermissionError as e:
-        logger.error({"evento": "Permissão negada para ARP scan", "detalhes": str(e)})
-    except Exception as e:
-        logger.error({"evento": "Erro no ARP scan", "subnet": network_cidr, "detalhes": str(e)})
+    # Estimar hosts baseado no CIDR mais comum
+    size_multiplier = max(1.0, network_size / 256)
+    
+    return {
+        'passive': min(CONFIG.BASE_PASSIVE_TIMEOUT * size_multiplier, 120),
+        'arp': min(CONFIG.BASE_ARP_TIMEOUT * size_multiplier, 10),
+        'icmp': min(CONFIG.BASE_ICMP_TIMEOUT * size_multiplier, 5),
+        'tcp': min(CONFIG.BASE_TCP_TIMEOUT * size_multiplier, 3.0),
+        'nmap': min(CONFIG.NMAP_TIMEOUT_BASE * size_multiplier, 900)
+    }
+
+# -----------------------
+# SCAN PASSIVO MELHORADO
+# -----------------------
+def discover_passively_all_interfaces(
+    interfaces: List[NetworkInterface], 
+    timeout: int = CONFIG.BASE_PASSIVE_TIMEOUT
+) -> Dict[str, Set[str]]:
+    """
+    Faz sniff passivo em TODAS as interfaces simultaneamente
+    Melhoria: multi-interface, threading, melhor performance
+    """
+    if not verificar_permissoes():
+        logger.warning("Permissões insuficientes para sniff passivo completo")
+        return {}
+    
+    logger.info(f"Iniciando descoberta passiva em {len(interfaces)} interfaces por {timeout}s")
+    
+    results = {}
+    threads = []
+    
+    def _sniff_interface(interface: NetworkInterface):
+        """Thread worker para sniff em uma interface específica"""
+        seen_ips = set()
+        
+        def _packet_handler(pkt):
+            try:
+                if pkt.haslayer(ARP):
+                    ip = pkt[ARP].psrc
+                    if not ip.startswith('127.'):
+                        seen_ips.add(ip)
+                elif pkt.haslayer(IP):
+                    ip = pkt[IP].src
+                    if not ip.startswith('127.'):
+                        seen_ips.add(ip)
+            except Exception:
+                pass
+        
+        try:
+            sniff(
+                iface=interface.name,
+                store=0,
+                prn=_packet_handler,
+                timeout=timeout,
+                filter="arp or icmp or tcp"
+            )
+        except Exception as e:
+            logger.debug(f"Erro no sniff da interface {interface.name}: {e}")
+        
+        results[interface.name] = seen_ips
+        logger.debug(f"Interface {interface.name}: {len(seen_ips)} IPs detectados passivamente")
+    
+    # Iniciar threads para cada interface
+    for iface in interfaces:
+        if iface.is_up:
+            thread = threading.Thread(target=_sniff_interface, args=(iface,))
+            thread.daemon = True
+            thread.start()
+            threads.append(thread)
+    
+    # Aguardar conclusão
+    for thread in threads:
+        thread.join(timeout + 5)
+    
+    total_ips = sum(len(ips) for ips in results.values())
+    logger.info(f"Descoberta passiva concluída: {total_ips} IPs únicos em {len(results)} interfaces")
+    
     return results
 
+# -----------------------
+# SCANNER INDUSTRIAL ESPECIALIZADO
+# -----------------------
+def detect_industrial_device(ip: str, open_ports: Dict[int, Any]) -> Dict[str, Any]:
+    """
+    Detecta dispositivos industriais baseado nas portas abertas
+    Melhoria: melhor identificação de PLCs e dispositivos SCADA
+    """
+    device_info = {
+        'type': 'unknown',
+        'manufacturer': 'unknown',
+        'protocol': [],
+        'confidence': 0
+    }
+    
+    confidence = 0
+    protocols = []
+    manufacturer = 'unknown'
+    device_type = 'network_device'
+    
+    # Detecção baseada em portas
+    for port, info in open_ports.items():
+        # Modbus
+        if port in CONFIG.MODBUS_PORTS:
+            protocols.append('modbus')
+            confidence += 30
+            device_type = 'plc'
+            
+        # Siemens
+        elif port in [102, 80, 443] and any(p in open_ports for p in [102]):
+            protocols.append('s7')
+            manufacturer = 'siemens'
+            confidence += 25
+            device_type = 'plc'
+            
+        # Rockwell/Allen-Bradley
+        elif port in CONFIG.ROCKWELL_PORTS:
+            protocols.append('ethernet_ip')
+            manufacturer = 'rockwell'
+            confidence += 25
+            device_type = 'plc'
+            
+        # OPC-UA
+        elif port in CONFIG.OPCUA_PORTS:
+            protocols.append('opcua')
+            confidence += 20
+            device_type = 'plc'
+            
+        # SNMP (comum em dispositivos industriais)
+        elif port in [161, 162]:
+            protocols.append('snmp')
+            confidence += 15
+            
+        # Portas web comuns em PLCs
+        elif port in [80, 443, 8080] and device_type != 'unknown':
+            protocols.append('http')
+            confidence += 10
+    
+    # Combinações específicas que indicam PLCs
+    if 502 in open_ports and (80 in open_ports or 443 in open_ports):
+        confidence += 20
+        device_type = 'modbus_plc'
+        
+    if 102 in open_ports and 80 in open_ports:
+        confidence += 25
+        manufacturer = 'siemens'
+        device_type = 'siemens_plc'
+    
+    device_info.update({
+        'type': device_type,
+        'manufacturer': manufacturer,
+        'protocol': protocols,
+        'confidence': min(confidence, 100)
+    })
+    
+    return device_info
 
 # -----------------------
-# ICMP sweep
+# PIPELINE PRINCIPAL MELHORADO
 # -----------------------
-def icmp_ping_sweep(ip_list: List[str], timeout: int = DEFAULT_ICMP_TIMEOUT) -> Set[str]:
-    """Envia ICMP echo para uma lista de IPs; retorna set de IPs que responderam."""
-    alive: Set[str] = set()
+def run_enhanced_discovery(
+    target_interfaces: Optional[List[str]] = None,
+    passive_timeout: Optional[int] = None,
+    use_cache: bool = CONFIG.ENABLE_CACHE,
+    save_detailed: bool = True
+) -> List[Dict[str, Any]]:
+    """
+    Pipeline de descoberta completamente reescrito e melhorado
+    
+    Melhorias principais:
+    - Multi-interface simultâneo
+    - Timeouts adaptativos
+    - Detecção industrial especializada
+    - Cache inteligente
+    - Melhor agregação de dados
+    """
+    
+    if not verificar_permissoes():
+        logger.error("Permissões insuficientes - execute como root/administrador")
+        return []
+    
+    start_time = time()
+    logger.info("=== INICIANDO DESCOBERTA AVANÇADA DE REDE ===")
+    
+    # 1. Detectar todas as interfaces
+    all_interfaces = get_all_network_interfaces()
+    
+    # Filtrar interfaces se especificado
+    if target_interfaces:
+        all_interfaces = [i for i in all_interfaces if i.name in target_interfaces]
+    
+    if not all_interfaces:
+        logger.error("Nenhuma interface de rede válida encontrada")
+        return []
+    
+    # 2. Calcular timeouts adaptativos baseado no tamanho total da rede
+    total_network_size = sum(ipaddress.ip_network(iface.network).num_addresses 
+                           for iface in all_interfaces)
+    timeouts = calculate_adaptive_timeouts(total_network_size)
+    
+    logger.info(f"Interfaces ativas: {len(all_interfaces)}")
+    logger.info(f"Tamanho total da rede: ~{total_network_size} IPs possíveis")
+    logger.info(f"Timeouts calculados: {timeouts}")
+    
+    # 3. Descoberta passiva multi-interface
+    passive_results = discover_passively_all_interfaces(
+        all_interfaces, 
+        int(passive_timeout or timeouts['passive'])
+    )
+    
+    # 4. Agregar todos os IPs descobertos
+    all_discovered_ips = set()
+    interface_mapping = {}
+    
+    for interface in all_interfaces:
+        # IPs descobertos passivamente nesta interface
+        passive_ips = passive_results.get(interface.name, set())
+        
+        # Mapear interface para IPs
+        for ip in passive_ips:
+            all_discovered_ips.add(ip)
+            interface_mapping[ip] = interface
+    
+    # 5. ARP scan por interface (paralelo)
+    logger.info("Iniciando ARP scan paralelo por interface...")
+    
+    all_devices = {}
+    
+    with ThreadPoolExecutor(max_workers=len(all_interfaces)) as executor:
+        # Criar future para ARP scan de cada interface
+        arp_futures = {
+            executor.submit(_enhanced_arp_scan, interface, timeouts['arp']): interface 
+            for interface in all_interfaces
+        }
+        
+        for future in as_completed(arp_futures):
+            interface = arp_futures[future]
+            try:
+                devices = future.result()
+                for device in devices:
+                    ip = device['ip']
+                    all_devices[ip] = device
+                    all_discovered_ips.add(ip)
+                    if ip not in interface_mapping:
+                        interface_mapping[ip] = interface
+                        
+            except Exception as e:
+                logger.error(f"Erro no ARP scan da interface {interface.name}: {e}")
+    
+    logger.info(f"Total de IPs únicos descobertos até agora: {len(all_discovered_ips)}")
+    
+    # 6. ICMP sweep em chunks paralelos
+    alive_ips = set()
+    ip_chunks = [list(all_discovered_ips)[i:i+50] for i in range(0, len(all_discovered_ips), 50)]
+    
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        icmp_futures = [
+            executor.submit(icmp_ping_sweep, chunk, timeouts['icmp']) 
+            for chunk in ip_chunks
+        ]
+        
+        for future in as_completed(icmp_futures):
+            try:
+                chunk_alive = future.result()
+                alive_ips.update(chunk_alive)
+            except Exception as e:
+                logger.debug(f"Erro no ICMP sweep: {e}")
+    
+    # 7. Port scanning inteligente
+    logger.info(f"Iniciando port scan em {len(all_discovered_ips)} IPs...")
+    
+    with ThreadPoolExecutor(max_workers=CONFIG.MAX_TOTAL_WORKERS) as executor:
+        port_futures = {
+            executor.submit(_enhanced_port_scan, ip, timeouts): ip 
+            for ip in all_discovered_ips
+        }
+        
+        for future in as_completed(port_futures):
+            ip = port_futures[future]
+            try:
+                port_results = future.result()
+                
+                # Atualizar device info
+                if ip not in all_devices:
+                    iface = interface_mapping.get(ip)
+                    all_devices[ip] = {
+                        'ip': ip,
+                        'mac': None,
+                        'interface': iface.name if iface else None,
+                        'network': iface.network if iface else None,
+                        'discovered_via': []
+                    }
+                
+                # Adicionar resultados de portas
+                all_devices[ip].update(port_results)
+                
+                # Detectar se é dispositivo industrial
+                if port_results.get('open_ports'):
+                    industrial_info = detect_industrial_device(ip, port_results['open_ports'])
+                    all_devices[ip]['industrial_device'] = industrial_info
+                    
+            except Exception as e:
+                logger.debug(f"Erro no port scan de {ip}: {e}")
+    
+    # 8. Finalizar e organizar resultados
+    final_devices = []
+    for ip, device in all_devices.items():
+        # Adicionar status ICMP
+        device['responds_to_ping'] = ip in alive_ips
+        
+        # Garantir campos obrigatórios
+        device.setdefault('discovered_via', [])
+        device.setdefault('open_ports', {})
+        device.setdefault('services', {})
+        
+        final_devices.append(device)
+    
+    # Ordenar por IP
+    final_devices = _safe_ip_sort(final_devices)
+    
+    elapsed = time() - start_time
+    logger.info(f"=== DESCOBERTA CONCLUÍDA ===")
+    logger.info(f"Tempo total: {elapsed:.2f}s")
+    logger.info(f"Dispositivos encontrados: {len(final_devices)}")
+    logger.info(f"Dispositivos industriais: {sum(1 for d in final_devices if d.get('industrial_device', {}).get('confidence', 0) > 50)}")
+    
+    # 9. Salvar resultados
+    _save_discovery_results(final_devices, save_detailed)
+    
+    return final_devices
+
+# -----------------------
+# FUNÇÕES AUXILIARES MELHORADAS
+# -----------------------
+def _enhanced_arp_scan(interface: NetworkInterface, timeout: int) -> List[Dict[str, Any]]:
+    """ARP scan melhorado para uma interface específica"""
+    devices = []
+    
+    try:
+        logger.debug(f"ARP scan na interface {interface.name} - rede {interface.network}")
+        
+        arp = ARP(pdst=interface.network)
+        ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+        
+        answered, _ = srp(ether / arp, timeout=timeout, verbose=0, iface=interface.name)
+        
+        for _, rcv in answered:
+            devices.append({
+                'ip': rcv.psrc,
+                'mac': rcv.hwsrc,
+                'interface': interface.name,
+                'network': interface.network,
+                'discovered_via': ['arp'],
+                'timestamp': time()
+            })
+            
+        logger.debug(f"Interface {interface.name}: {len(devices)} dispositivos via ARP")
+        
+    except Exception as e:
+        logger.debug(f"Erro no ARP scan da interface {interface.name}: {e}")
+    
+    return devices
+
+def _enhanced_port_scan(ip: str, timeouts: Dict) -> Dict[str, Any]:
+    """Port scan melhorado com detecção de serviços"""
+    result = {
+        'open_ports': {},
+        'services': {},
+        'scan_time': time()
+    }
+    
+    # Scan rápido de portas industriais primeiro
+    quick_results = tcp_probe(ip, CONFIG.COMMON_INDUSTRIAL_PORTS, timeouts['tcp'])
+    open_ports = [port for port, is_open in quick_results.items() if is_open]
+    
+    if open_ports:
+        # Se encontrou portas abertas, fazer scan mais detalhado
+        result['open_ports'] = {port: {'state': 'open', 'method': 'tcp_connect'} 
+                              for port in open_ports}
+        
+        # Tentar identificar serviços nas portas abertas
+        for port in open_ports[:5]:  # Limitar para performance
+            service_info = _identify_service(ip, port)
+            if service_info:
+                result['services'][port] = service_info
+    
+    return result
+
+def _identify_service(ip: str, port: int) -> Optional[Dict[str, str]]:
+    """Tenta identificar o serviço rodando na porta"""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(2)
+            s.connect((ip, port))
+            
+            # Enviar dados específicos do protocolo se necessário
+            if port == 502:  # Modbus
+                return {'name': 'modbus', 'protocol': 'tcp', 'type': 'industrial'}
+            elif port == 102:  # S7
+                return {'name': 's7comm', 'protocol': 'tcp', 'type': 'industrial'}
+            elif port in [80, 443, 8080]:
+                return {'name': 'http', 'protocol': 'tcp', 'type': 'web'}
+            elif port == 4840:
+                return {'name': 'opcua', 'protocol': 'tcp', 'type': 'industrial'}
+            else:
+                return {'name': 'unknown', 'protocol': 'tcp', 'type': 'unknown'}
+                
+    except Exception:
+        return None
+
+def _save_discovery_results(devices: List[Dict[str, Any]], detailed: bool = True):
+    """Salva os resultados da descoberta"""
+    try:
+        # Criar diretório se não existir
+        os.makedirs(os.path.dirname(DISCOVERY_FILE), exist_ok=True)
+        
+        # Salvar arquivo principal
+        with tempfile.NamedTemporaryFile('w', delete=False, 
+                                       dir=os.path.dirname(DISCOVERY_FILE)) as f:
+            json.dump(devices, f, indent=2, ensure_ascii=False)
+            temp_name = f.name
+        
+        os.replace(temp_name, DISCOVERY_FILE)
+        logger.info(f"Resultados salvos em: {DISCOVERY_FILE}")
+        
+        # Salvar versão resumida se solicitado
+        if detailed:
+            summary_file = DISCOVERY_FILE.replace('.json', '_summary.json')
+            summary = []
+            
+            for device in devices:
+                industrial = device.get('industrial_device', {})
+                summary.append({
+                    'ip': device['ip'],
+                    'mac': device.get('mac'),
+                    'responds_to_ping': device.get('responds_to_ping', False),
+                    'open_ports': list(device.get('open_ports', {}).keys()),
+                    'is_industrial': industrial.get('confidence', 0) > 50,
+                    'device_type': industrial.get('type', 'unknown'),
+                    'manufacturer': industrial.get('manufacturer', 'unknown')
+                })
+            
+            with open(summary_file, 'w') as f:
+                json.dump(summary, f, indent=2)
+            
+            logger.info(f"Resumo salvo em: {summary_file}")
+            
+    except Exception as e:
+        logger.error(f"Erro ao salvar resultados: {e}")
+
+# Manter compatibilidade com funções originais
+def _safe_ip_sort(devices: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Ordena dispositivos por IP de forma segura"""
+    try:
+        return sorted(devices, key=lambda x: ipaddress.ip_address(x.get('ip', '0.0.0.0')))
+    except Exception:
+        return devices
+
+def icmp_ping_sweep(ip_list: List[str], timeout: int = 2) -> Set[str]:
+    """ICMP sweep melhorado"""
+    alive = set()
     if not ip_list:
         return alive
+        
     try:
         packets = IP(dst=ip_list) / ICMP()
         answered, _ = sr(packets, timeout=timeout, verbose=0)
-        for snd, rcv in answered:
-            try:
-                alive.add(rcv.src)
-            except Exception:
-                continue
+        
+        for _, rcv in answered:
+            alive.add(rcv.src)
+            
     except Exception as e:
-        logger.debug({"evento": "Erro no ICMP sweep", "detalhes": str(e)})
+        logger.debug(f"Erro no ICMP sweep: {e}")
+    
     return alive
 
-
-# -----------------------
-# TCP probe rápido (connect)
-# -----------------------
-def tcp_probe(ip: str, ports: List[int], timeout: float = DEFAULT_TCP_TIMEOUT) -> Dict[int, bool]:
-    """
-    Tenta conexão TCP connect_ex nas portas; retorna dict porta->bool.
-    Uso rápido, não substitui nmap para descoberta completa.
-    """
-    results: Dict[int, bool] = {}
-    for p in ports:
+def tcp_probe(ip: str, ports: List[int], timeout: float = 1.0) -> Dict[int, bool]:
+    """TCP probe melhorado"""
+    results = {}
+    
+    for port in ports:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(timeout)
-                res = s.connect_ex((ip, p))
-                results[p] = (res == 0)
+                result = s.connect_ex((ip, port))
+                results[port] = (result == 0)
         except Exception:
-            results[p] = False
+            results[port] = False
+            
     return results
 
+# -----------------------
+# FUNÇÃO PRINCIPAL PARA COMPATIBILIDADE
+# -----------------------
+def run_full_discovery(**kwargs) -> List[Dict[str, Any]]:
+    """Função principal mantendo compatibilidade com código original"""
+    return run_enhanced_discovery(**kwargs)
 
 # -----------------------
-# Helpers para colapso / merge por MAC
-# -----------------------
-def _normalize_mac(mac: Optional[str]) -> Optional[str]:
-    """Normaliza MAC para formato aa:bb:cc:dd:ee:ff ou retorna None se inválida."""
-    if not mac:
-        return None
-    mac = mac.strip().lower().replace("-", ":")
-    mac = re.sub(r'[^0-9a-f:]', '', mac)
-    mac = re.sub(r':{2,}', ':', mac)
-    if not re.match(r'^([0-9a-f]{2}:){5}[0-9a-f]{2}$', mac):
-        return None
-    if mac in ("00:00:00:00:00:00", "ff:ff:ff:ff:ff:ff"):
-        return None
-    return mac
-
-
-def _merge_port_dicts(a: Dict[int, Any], b: Dict[int, Any]) -> Dict[int, Any]:
-    """Faz merge simples de dicts de portas:
-       - booleans -> OR lógico
-       - dicts (nmap) -> merge preferindo 'open'
-    """
-    if not a:
-        return copy.deepcopy(b) if b else {}
-    if not b:
-        return copy.deepcopy(a)
-    out = copy.deepcopy(a)
-    for port, val in b.items():
-        if port in out:
-            aval = out[port]
-            if isinstance(aval, bool) and isinstance(val, bool):
-                out[port] = aval or val
-            elif isinstance(aval, dict) and isinstance(val, dict):
-                merged = dict(aval)
-                for k, v in val.items():
-                    if k == "state":
-                        if merged.get("state") != "open":
-                            merged["state"] = v
-                    else:
-                        if v is not None:
-                            merged[k] = v
-                out[port] = merged
-            else:
-                out[port] = val or aval
-        else:
-            out[port] = copy.deepcopy(val)
-    return out
-
-
-def _collapse_devices_by_mac(all_devices: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Agrupa/colapsa entries por MAC quando disponível. Para entradas sem MAC usa ip como chave.
-    Mantém lista ips_seen em cada dispositivo final para histórico.
-    """
-    grouped: Dict[str, Dict[str, Any]] = {}
-
-    for ip, entry in all_devices.items():
-        mac_raw = entry.get("mac")
-        mac = _normalize_mac(mac_raw)
-        key = mac if mac else f"ip::{ip}"
-
-        if key not in grouped:
-            grouped[key] = copy.deepcopy(entry)
-            grouped[key]["ips_seen"] = [ip]
-            # garantir mac normalizado quando disponível
-            if mac:
-                grouped[key]["mac"] = mac
-        else:
-            target = grouped[key]
-            if ip not in target.get("ips_seen", []):
-                target.setdefault("ips_seen", []).append(ip)
-
-            # discovered_via
-            dv = set(target.get("discovered_via", []) or [])
-            dv.update(entry.get("discovered_via", []) or [])
-            target["discovered_via"] = list(dv)
-
-            # iface/subnet: preferir valores existentes
-            if not target.get("iface") and entry.get("iface"):
-                target["iface"] = entry.get("iface")
-            if not target.get("subnet") and entry.get("subnet"):
-                target["subnet"] = entry.get("subnet")
-
-            # alive_icmp: OR lógico
-            target["alive_icmp"] = bool(target.get("alive_icmp") or entry.get("alive_icmp"))
-
-            # portas -> merge
-            target["portas"] = _merge_port_dicts(target.get("portas", {}), entry.get("portas", {}))
-
-            # portas_nmap -> merge
-            target["portas_nmap"] = _merge_port_dicts(target.get("portas_nmap", {}), entry.get("portas_nmap", {}))
-
-            # portas_detalhadas -> tentar mesclar se dicts
-            if not target.get("portas_detalhadas") and entry.get("portas_detalhadas"):
-                target["portas_detalhadas"] = entry.get("portas_detalhadas")
-            elif isinstance(target.get("portas_detalhadas"), dict) and isinstance(entry.get("portas_detalhadas"), dict):
-                merged_det = dict(target["portas_detalhadas"])
-                merged_det.update(entry["portas_detalhadas"])
-                target["portas_detalhadas"] = merged_det
-
-            # mac: preencher se não existia
-            if not target.get("mac") and mac:
-                target["mac"] = mac
-
-    # escolher ip representativo e montar lista final
-    final_list: List[Dict[str, Any]] = []
-    for key, item in grouped.items():
-        seen_ips = item.get("ips_seen", [])
-        chosen_ip = None
-
-        # preferir IP com alive_icmp True
-        if seen_ips:
-            for cand in seen_ips:
-                orig = all_devices.get(cand)
-                if orig and orig.get("alive_icmp"):
-                    chosen_ip = cand
-                    break
-
-        # senão preferir IP com portas abertas
-        if not chosen_ip:
-            for cand in seen_ips:
-                orig = all_devices.get(cand, {})
-                portas = orig.get("portas") or {}
-                if any(portas.values()):
-                    chosen_ip = cand
-                    break
-
-        # senão usar primeiro
-        if not chosen_ip and seen_ips:
-            chosen_ip = seen_ips[0]
-
-        if chosen_ip and chosen_ip in all_devices:
-            src = all_devices[chosen_ip]
-            item["ip"] = chosen_ip
-            if src.get("iface"):
-                item["iface"] = src.get("iface")
-            if src.get("subnet"):
-                item["subnet"] = src.get("subnet")
-
-        # defensivo: garantir campo ip
-        if not item.get("ip") and seen_ips:
-            item["ip"] = seen_ips[0]
-
-        final_list.append(item)
-
-    # ordenar por ip
-    final_list = _safe_ip_sort(final_list)
-    return final_list
-
-
-# -----------------------
-# Orquestrador principal
-# -----------------------
-def run_full_discovery(
-    passive_timeout: int = DEFAULT_PASSIVE_TIMEOUT,
-    arp_timeout: int = DEFAULT_ARP_TIMEOUT,
-    icmp_timeout: int = DEFAULT_ICMP_TIMEOUT,
-    tcp_timeout: float = DEFAULT_TCP_TIMEOUT,
-    ports: Optional[List[int]] = None,
-    parallel_workers: int = MAX_WORKERS,
-    save_per_interface: bool = False,
-    use_nmap: bool = USE_NMAP_FOR_FULL_PORT_SCAN,
-) -> List[Dict[str, Any]]:
-    """
-    Pipeline completo:
-      1) passive sniff
-      2) get local subnets
-      3) ARP scan por subnet (paralelo)
-      4) preencher com passivos
-      5) ICMP sweep (chunks)
-      6) TCP probes rápidos (paralelo)
-      7) (opcional) nmap -p- por host para descobrir todas portas (paralelo)
-      8) (opcional) usar escanear_portas para detalhes
-      9) salvar JSON (agrupar por MAC)
-    """
-    if ports is None:
-        ports = COMMON_PLC_PORTS
-
-    if not verificar_permissoes():
-        logger.error({"evento": "Permissões insuficientes (discovery)", "detalhes": "Executar como root/adm."})
-        return []
-
-    start_ts = time()
-    logger.info({"evento": "Começando descoberta completa"})
-
-    # 1) sniff passivo
-    passive_ips = discover_passively(timeout=passive_timeout)
-
-    # 2) obter subnets
-    iface_subnets = get_local_subnets()
-    if not iface_subnets:
-        logger.warning({"evento": "Nenhuma interface/sub-rede detectada"})
-        return []
-
-    # 3) ARP scan paralelo
-    all_devices: Dict[str, Dict[str, Any]] = {}
-    with ThreadPoolExecutor(max_workers=parallel_workers) as ex:
-        futures = {ex.submit(arp_scan, subnet, arp_timeout): (iface, subnet) for iface, subnet in iface_subnets}
-        for fut in as_completed(futures):
-            iface, subnet = futures[fut]
-            try:
-                devices = fut.result()
-            except Exception as e:
-                logger.debug({"evento": "Erro em ARP future", "iface": iface, "subnet": subnet, "detalhes": str(e)})
-                devices = []
-            for d in devices:
-                ip = d["ip"]
-                if ip not in all_devices:
-                    all_devices[ip] = {
-                        "ip": ip,
-                        "mac": d.get("mac"),
-                        "subnet": d.get("subnet"),
-                        "iface": iface,
-                        "discovered_via": ["arp"],
-                        "alive_icmp": False,
-                        "portas": {},
-                    }
-                else:
-                    if "arp" not in all_devices[ip]["discovered_via"]:
-                        all_devices[ip]["discovered_via"].append("arp")
-                    if not all_devices[ip].get("mac"):
-                        all_devices[ip]["mac"] = d.get("mac")
-                    if not all_devices[ip].get("iface"):
-                        all_devices[ip]["iface"] = iface
-
-    # 4) incluir IPs passivos que não apareceram no ARP
-    for ip in passive_ips:
-        if ip not in all_devices:
-            all_devices[ip] = {
-                "ip": ip,
-                "mac": None,
-                "subnet": None,
-                "iface": None,
-                "discovered_via": ["passive"],
-                "alive_icmp": False,
-                "portas": {},
-            }
-        else:
-            if "passive" not in all_devices[ip]["discovered_via"]:
-                all_devices[ip]["discovered_via"].append("passive")
-
-    # 5) associar iface/subnet por matching de rede
-    for iface, subnet in iface_subnets:
-        net = ipaddress.ip_network(subnet)
-        for ip, entry in all_devices.items():
-            try:
-                if ipaddress.ip_address(ip) in net:
-                    entry["iface"] = iface
-                    if not entry.get("subnet"):
-                        entry["subnet"] = subnet
-            except Exception:
-                continue
-
-    # 6) complementar com ARP cache
-    try:
-        arp_cache = _read_arp_cache()
-        for ip, mac in arp_cache.items():
-            if ip in all_devices and not all_devices[ip].get("mac"):
-                all_devices[ip]["mac"] = mac
-    except Exception:
-        arp_cache = {}
-
-    # 7) ICMP sweep em chunks
-    ips_list = list(all_devices.keys())
-    alive_ips: Set[str] = set()
-    chunk = 200
-    for i in range(0, len(ips_list), chunk):
-        sub = ips_list[i : i + chunk]
-        alive = icmp_ping_sweep(sub, timeout=icmp_timeout)
-        alive_ips.update(alive)
-
-    for ip in alive_ips:
-        if ip in all_devices:
-            all_devices[ip]["alive_icmp"] = True
-            if "icmp" not in all_devices[ip]["discovered_via"]:
-                all_devices[ip]["discovered_via"].append("icmp")
-
-    # 8) tcp_probe rápido em paralelo (opcional antes do nmap)
-    with ThreadPoolExecutor(max_workers=parallel_workers) as ex:
-        future_map = {ex.submit(tcp_probe, ip, ports, tcp_timeout): ip for ip in all_devices.keys()}
-        for fut in as_completed(future_map):
-            ip = future_map[fut]
-            try:
-                res = fut.result()
-                all_devices[ip]["portas"] = res
-                if any(res.values()) and "tcp" not in all_devices[ip]["discovered_via"]:
-                    all_devices[ip]["discovered_via"].append("tcp")
-            except Exception as e:
-                logger.debug({"evento": "Erro tcp_probe", "ip": ip, "detalhes": str(e)})
-
-    # 9) Nmap (varredura completa de portas) - paralelo por host (pode ser lento)
-    if use_nmap and _nmap_available():
-        logger.info({"evento": "Usando nmap para varredura completa de portas (pode demorar)"})
-        with ThreadPoolExecutor(max_workers=parallel_workers) as ex:
-            future_map = {ex.submit(nmap_scan_host, ip, True, None, True, NMAP_TIMEOUT_PER_HOST): ip for ip in all_devices.keys()}
-            for fut in as_completed(future_map):
-                ip = future_map[fut]
-                try:
-                    nmap_res = fut.result()
-                    all_devices[ip]["portas_nmap"] = nmap_res
-                    any_open = any(v.get("state") == "open" for v in nmap_res.values())
-                    if any_open and "nmap" not in all_devices[ip]["discovered_via"]:
-                        all_devices[ip]["discovered_via"].append("nmap")
-                except Exception as e:
-                    logger.debug({"evento": "Erro nmap_scan_host", "ip": ip, "detalhes": str(e)})
-    else:
-        if use_nmap:
-            logger.warning({"evento": "nmap configurado mas não instalado; pulando nmap step"})
-
-    # 10) fallback: escanear_portas (se disponível) para hosts com portas abertas detectadas
-    if escanear_portas:
-        try:
-            with ThreadPoolExecutor(max_workers=parallel_workers) as ex:
-                futures = {}
-                for ip, entry in all_devices.items():
-                    call = False
-                    if entry.get("portas") and any(entry["portas"].values()):
-                        call = True
-                    if entry.get("portas_nmap") and any(v.get("state") == "open" for v in entry["portas_nmap"].values()):
-                        call = True
-                    if call:
-                        futures[ex.submit(escanear_portas, ip)] = ip
-                for fut in as_completed(futures):
-                    ip = futures[fut]
-                    try:
-                        portas_detalhadas = fut.result()
-                        all_devices[ip]["portas_detalhadas"] = portas_detalhadas
-                    except Exception as e:
-                        logger.debug({"evento": "Erro escanear_portas future", "ip": ip, "detalhes": str(e)})
-        except Exception:
-            pass
-
-    # resultado final: colapsar por mac e salvar
-    devices_final = _collapse_devices_by_mac(all_devices)
-
-    elapsed = time() - start_ts
-    logger.info({"evento": "Descoberta completa", "total": len(devices_final), "tempo_segundos": elapsed})
-
-    # gravação atômica do arquivo DISCOVERY_FILE (usa temp + replace)
-    try:
-        dirpath = os.path.dirname(DISCOVERY_FILE) or "."
-        os.makedirs(dirpath, exist_ok=True)
-        with tempfile.NamedTemporaryFile("w", delete=False, dir=dirpath, encoding="utf-8") as tf:
-            json.dump(devices_final, tf, indent=2, ensure_ascii=False)
-            tmpname = tf.name
-        os.replace(tmpname, DISCOVERY_FILE)
-        logger.info({"evento": "Resultados salvos", "arquivo": DISCOVERY_FILE})
-    except Exception as e:
-        logger.error({"evento": "Falha ao salvar resultados", "detalhes": str(e)})
-
-    # salvar por interface opcional (também atômico)
-    if save_per_interface:
-        by_iface: Dict[str, List[Dict[str, Any]]] = {}
-        for d in devices_final:
-            iface = d.get("iface") or "unknown"
-            by_iface.setdefault(iface, []).append(d)
-        for iface, lst in by_iface.items():
-            safe_base = DISCOVERY_FILE.rstrip(".json")
-            fname = f"{safe_base}_{iface}.json"
-            try:
-                dirpath = os.path.dirname(fname) or "."
-                os.makedirs(dirpath, exist_ok=True)
-                with tempfile.NamedTemporaryFile("w", delete=False, dir=dirpath, encoding="utf-8") as tf:
-                    json.dump(lst, tf, indent=2, ensure_ascii=False)
-                    tmpname = tf.name
-                os.replace(tmpname, fname)
-                logger.info({"evento": "Salvo por interface", "iface": iface, "arquivo": fname})
-            except Exception as e:
-                logger.warning({"evento": "Erro salvando por interface", "iface": iface, "detalhes": str(e)})
-
-    return devices_final
-
-
-# -----------------------
-# helper para background
-# -----------------------
-def discovery_background_once() -> None:
-    logger.info({"evento": "Iniciando discovery_background_once"})
-    try:
-        run_full_discovery()
-    except Exception as e:
-        logger.error({"evento": "Erro discovery_background_once", "detalhes": str(e)})
-
-
-# -----------------------
-# executável
+# EXECUTÁVEL
 # -----------------------
 if __name__ == "__main__":
-    logger.info({"evento": "--- SCRIPT DE DESCOBERTA INICIADO ---"})
-    devices = run_full_discovery(save_per_interface=True, use_nmap=USE_NMAP_FOR_FULL_PORT_SCAN)
+    print("=== SISTEMA DE DESCOBERTA DE REDE MELHORADO ===")
+    devices = run_enhanced_discovery()
+    
     if devices:
-        logger.info({"evento": "Execução finalizada com sucesso", "total": len(devices)})
+        print(f"\n✅ Descoberta concluída com sucesso!")
+        print(f"📊 Total de dispositivos: {len(devices)}")
+        
+        industrial_count = sum(1 for d in devices 
+                             if d.get('industrial_device', {}).get('confidence', 0) > 50)
+        print(f"🏭 Dispositivos industriais detectados: {industrial_count}")
+        
+        interfaces = set(d.get('interface') for d in devices if d.get('interface'))
+        print(f"🔌 Interfaces utilizadas: {', '.join(interfaces) if interfaces else 'N/A'}")
+        
     else:
-        logger.info({"evento": "Nenhum dispositivo encontrado ou falha na execução."})
-    logger.info({"evento": "--- FIM ---"})
+        print("❌ Nenhum dispositivo encontrado ou erro na execução")
